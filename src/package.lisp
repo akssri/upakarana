@@ -20,6 +20,8 @@
   (:export #:make-extensible-vector #:maptree-if #:maptree #:cartesian-product #:mapcart
 	   #:pair #:zip #:unzip #:ziptree #:recursive-append #:take-while
 	   #:binary-search #:sort-index #:topological-sort
+	   ;; vector
+	   #:foldr #:foldl #:extreme #:copy! #:map!
 	   ;; macros
 	   #:gethash! #:assoc! #:getf! #:accum! #:values-n #:letv* #:cart-case #:cart-ecase
 	   #:cart-typecase #:cart-etypecase #:with-memoization #:.>))

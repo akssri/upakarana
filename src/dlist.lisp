@@ -13,7 +13,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-(in-package #:matlisp-dlist)
+(in-package #:upakarana-doubly-linked-list)
 ;; (setf *print-circle* t)
 
 (defstruct (dcons (:conc-name d))
