@@ -13,7 +13,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-(in-package #:upakarana-fibonacci)
+(in-package #:upakarana-fibonacci-heap)
 
 ;; Based on CLR, Chapter 19. CLR refers to 'key' as the values of the nodes (node.car) that are
 ;; to be compared. The term key (node.key) is used here in the context of key-value store, and
@@ -144,7 +144,7 @@
 	  (finally (setf (slot-value fib 'xnode) fmin)))
     fib))
 ;;
-(defun decrease-value (new-value node-or-key fib &aux (order (slot-value fib 'order)))
+(defun decrease-key (new-value node-or-key fib &aux (order (slot-value fib 'order)))
   "(DECREASE-KEY new-value node-or-key fib)
   decrease the heap-value of node @arg{node-or-key} to @arg{new-value}."
   (let ((x (etypecase node-or-key (node node-or-key) (fixnum (gethash node-or-key (node-table fib))))))

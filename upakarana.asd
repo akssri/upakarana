@@ -23,10 +23,9 @@
 	     (:module #:utilities :pathname "" :depends-on ("package") :components
 		      ((:file "functions")
 		       (:file "macros" :depends-on ("functions"))
-		       (:file "union-find" :depends-on ("macros" "functions"))
-		       ;; (:file "vec" :depends-on ("macros" "functions"))
 		       (:file "set" :depends-on ("macros" "functions"))
-		       ;; (:file "dlist" :depends-on ("macros" "functions"))
-		       ;; (:file "fibonacci" :depends-on ("dlist"))
-
-		       ))))))
+		       (:file "vector" :depends-on ("macros" "functions"))
+		       (:file "dlist" :depends-on ("macros" "functions"))
+		       (:file "union-find" :depends-on ("macros" "functions"))
+		       (:file "binary-heap" :depends-on ("macros" "functions"))
+		       (:file "fibonacci" :depends-on ("dlist"))))))))

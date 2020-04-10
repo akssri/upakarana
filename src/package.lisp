@@ -20,34 +20,37 @@
   (:export #:make-extensible-vector #:maptree-if #:maptree #:cartesian-product #:mapcart
 	   #:pair #:zip #:unzip #:ziptree #:recursive-append #:take-while
 	   #:binary-search #:sort-index #:topological-sort
-	   ;; vector
-	   #:foldr #:foldl #:extreme #:copy! #:map!
 	   ;; macros
 	   #:gethash! #:assoc! #:getf! #:accum! #:values-n #:letv* #:cart-case #:cart-ecase
 	   #:cart-typecase #:cart-etypecase #:with-memoization #:.>))
 
 (defpackage "UPAKARANA-UNION-FIND"
-  (:nicknames :ufd)
+  (:nicknames :u.ufd)
   (:use #:common-lisp #:upakarana #:iterate)
   (:export #:union-find #:id #:size #:root #:unify))
 
 (defpackage "UPAKARANA-HASH-SET"
-  (:nicknames :set)
+  (:nicknames :u.set)
   (:use #:common-lisp #:upakarana #:iterate)
   (:shadow #:set)
   (:export #:set #:ensure-set #:set->list #:set-member #:set= #:add! #:union! #:intersection! #:difference! #:symmetric-difference!))
 
 (defpackage "UPAKARANA-DOUBLY-LINKED-LIST"
-  (:nicknames #:dlist)
+  (:nicknames #:u.dlist)
   (:use #:common-lisp #:upakarana #:iterate #:alexandria)
   (:export #:dcons #:dcar #:dcdr #:drdc #:dcons! #:dring #:dlist #:dlast #:dpush #:dpop))
 
 (defpackage "UPAKARANA-FIBONACCI-HEAP"
-  (:nicknames :fheap)
+  (:nicknames :u.fheap)
   (:use #:common-lisp #:upakarana #:upakarana-doubly-linked-list #:iterate #:alexandria)
-  (:export #:fibonacci-heap #:min-value #:node-value #:node-existsp #:insert #:extract-min #:decrease-value #:delete-key))
+  (:export #:fibonacci-heap #:min-value #:node-value #:node-existsp #:insert #:extract-min #:decrease-key #:delete-key))
 
 (defpackage "UPAKARANA-BINARY-HEAP"
-  (:nicknames :bheap)
+  (:nicknames :u.bheap)
   (:use #:common-lisp #:upakarana #:iterate #:alexandria)
   (:export #:make-heap #:heappush #:heappop #:heapify-up #:heapify-down #:parent-index #:lchild-index))
+
+(defpackage "UPAKARANA-VECTOR"
+  (:nicknames :u.vec)
+  (:use #:common-lisp #:upakarana)
+  (:export #:foldr #:foldl #:extreme #:copy! #:map!))
