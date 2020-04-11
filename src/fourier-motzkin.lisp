@@ -125,12 +125,3 @@
 	    (iter (for ii in-vector lb) (vector-push-extend (aref constraints ii) sol))
 	    (iter (for ii in-vector ub) (vector-push-extend (aref constraints ii) sol))
 	    (values sol (simplify-constraints! ret)))))))
-
-;; TODO - Add tests.
-#+nil
-(letv* ((A (vector (make-inequation :row (coerce #(1 0 10) '(simple-array inequation-dtype (*))) :op :<=)
-		   (make-inequation :row (coerce #(1 0 0) '(simple-array inequation-dtype (*))) :op :>=)
-		   (make-inequation :row (coerce #(0 1 5) '(simple-array inequation-dtype (*))) :op :<=)
-		   (make-inequation :row (coerce #(0 1 0) '(simple-array inequation-dtype (*))) :op :>=)
-		   (make-inequation :row (coerce #(1 -1 0) '(simple-array inequation-dtype (*))) :op :<=))))
-  (fourier-motzkin 1 A))
