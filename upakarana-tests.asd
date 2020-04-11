@@ -16,8 +16,11 @@
 (asdf:defsystem :upakarana-tests
   :licence "GPL"
   :author "See AUTHORS"
-  :depends-on (#:iterate #:alexandria #:upakarana)
+  :depends-on (#:iterate #:alexandria #:upakarana #:fiveam)
   :components
-  ((:module #:t :components
+  ((:module #:t :serial t :components
 	    ((:file "package")
+	     (:file "binary-heap")
+	     (:file "fibonacci-heap")
+	     (:file "union-find")
 	     (:file "simplex")))))
