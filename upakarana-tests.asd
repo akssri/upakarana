@@ -20,7 +20,8 @@
   :components
   ((:module #:t :serial t :components
 	    ((:file "package")
+	     (:file "union-find")
 	     (:file "binary-heap")
 	     (:file "fibonacci-heap")
-	     (:file "union-find")
+	     (:file "fourier-motzkin")
 	     (:file "simplex")))))
