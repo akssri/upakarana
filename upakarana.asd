@@ -15,7 +15,7 @@
 
 (asdf:defsystem :upakarana
   :licence "GPL"
-  :author "See AUTHORS"
+  :author "See README"
   :depends-on (#:iterate #:alexandria)
   :components
   ((:module #:src :components
