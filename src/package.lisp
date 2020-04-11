@@ -46,9 +46,8 @@
   (:shadow #:pop #:push #:delete)
   (:export
    #:fibonacci-heap #:xnode #:size #:order #:node-table ;; fibonacci heap slots
-   #:fibonacci-heap-decrement-infeasible
    #:peek #:push #:pop #:decrement #:delete             ;; heap operations
-   ))
+   #:fibonacci-heap-decrement-infeasible))
 
 (defpackage "UPAKARANA-BINARY-HEAP"
   (:nicknames :u.bheap)
