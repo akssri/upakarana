@@ -189,3 +189,8 @@
 	(progn (cut y z fib) (ccut z fib))
 	(setf (nmarkp y) t))))
 ;;
+
+(defun make-heap (seq &optional (order #'<))
+  (let ((heap (make-instance 'fibonacci-heap :order order)))
+    (map nil #'(lambda (x) (u.fheap:push x heap)) seq)
+    heap))

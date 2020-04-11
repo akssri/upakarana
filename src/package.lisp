@@ -46,14 +46,15 @@
   (:shadow #:pop #:push #:delete)
   (:export
    #:fibonacci-heap #:xnode #:size #:order #:node-table ;; fibonacci heap slots
-   #:peek #:push #:pop #:decrement #:delete             ;; heap operations
+   #:make-heap #:peek #:push #:pop #:decrement #:delete ;; heap operations
    #:fibonacci-heap-decrement-infeasible))
 
 (defpackage "UPAKARANA-BINARY-HEAP"
   (:nicknames :u.bheap)
   (:shadow #:pop #:push)
   (:use #:common-lisp #:upakarana #:iterate #:alexandria)
-  (:export #:make-heap #:push #:pop #:heapify-up #:heapify-down #:parent-index #:lchild-index))
+  (:export #:make-heap #:peek #:push #:pop              ;; heap operations
+	   #:heapify-up #:heapify-down #:parent-index #:lchild-index))
 
 (defpackage "UPAKARANA-VECTOR"
   (:nicknames :u.vec)

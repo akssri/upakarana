@@ -42,6 +42,12 @@
       (rotatef (aref vec idx) (aref vec swap-idx))
       (heapify-down swap-idx vec order))))
 
+(defun peek (vec)
+  "(PEEK vec) => NIL or extreme-value
+  Return, if it exists, the extreme element; O(1)."
+  (when (< 0 (length vec))
+    (aref vec 0)))
+
 (defun push (item vec &optional (order #'<))
   "(PUSH item vec) => vec
   INSERT. Insert @arg{item} into heap; O(log n)."
