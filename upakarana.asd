@@ -28,6 +28,6 @@
 		       (:file "dlist" :depends-on ("macros" "functions"))
 		       (:file "union-find" :depends-on ("macros" "functions"))
 		       (:file "binary-heap" :depends-on ("macros" "functions"))
-		       (:file "fibonacci" :depends-on ("dlist"))
+		       (:file "fibonacci-heap" :depends-on ("dlist"))
 		       (:file "fourier-motzkin" :depends-on ("macros" "functions" "vector"))
 		       (:file "simplex" :depends-on ("macros" "functions" "vector"))))))))

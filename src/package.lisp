@@ -51,8 +51,9 @@
 
 (defpackage "UPAKARANA-BINARY-HEAP"
   (:nicknames :u.bheap)
+  (:shadow #:pop #:push)
   (:use #:common-lisp #:upakarana #:iterate #:alexandria)
-  (:export #:make-heap #:heappush #:heappop #:heapify-up #:heapify-down #:parent-index #:lchild-index))
+  (:export #:make-heap #:push #:pop #:heapify-up #:heapify-down #:parent-index #:lchild-index))
 
 (defpackage "UPAKARANA-VECTOR"
   (:nicknames :u.vec)

@@ -42,10 +42,15 @@
       (rotatef (aref vec idx) (aref vec swap-idx))
       (heapify-down swap-idx vec order))))
 
-(defun heappush (item vec &optional (order #'<))
-  (heapify-up (vector-push-extend item vec) vec order))
+(defun push (item vec &optional (order #'<))
+  "(PUSH item vec) => vec
+  INSERT. Insert @arg{item} into heap; O(log n)."
+  (heapify-up (vector-push-extend item vec) vec order)
+  vec)
 
-(defun heappop (vec &optional (order #'<))
+(defun pop (vec &optional (order #'<))
+  "(POP vec) => extreme-value
+  This operation extricates the extremum node from the heap; O(log n)."
   (when (< 0 (length vec))
     (rotatef (aref vec 0) (aref vec (1- (length vec))))
     (prog1 (vector-pop vec)
