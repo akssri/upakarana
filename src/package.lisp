@@ -43,7 +43,12 @@
 (defpackage "UPAKARANA-FIBONACCI-HEAP"
   (:nicknames :u.fheap)
   (:use #:common-lisp #:upakarana #:upakarana-doubly-linked-list #:iterate #:alexandria)
-  (:export #:fibonacci-heap #:min-value #:node-value #:node-existsp #:insert #:extract-min #:decrease-key #:delete-key))
+  (:shadow #:pop #:push #:delete)
+  (:export
+   #:fibonacci-heap #:xnode #:size #:order #:node-table ;; fibonacci heap slots
+   #:fibonacci-heap-decrement-infeasible
+   #:peek #:push #:pop #:decrement #:delete             ;; heap operations
+   ))
 
 (defpackage "UPAKARANA-BINARY-HEAP"
   (:nicknames :u.bheap)

@@ -1,4 +1,3 @@
-;; cloop is a polyhedral compiler for Common Lisp.
 ;; Copyright (c) 2020 Akshay Srinivasan <akssri@vakra.xyz>
 
 ;; This program is free software: you can redistribute it and/or modify
