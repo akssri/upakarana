@@ -19,9 +19,9 @@
 (5am:in-suite :binary-heap)
 
 (5am:test binary-heap-test
-  (let ((N 1000)
-	(order #'<)
-	(heap (make-extensible-vector)))
+  (let* ((N 1000)
+	 (heap (make-extensible-vector))
+	 (order #'<))
     ;; insert
     (iter (repeat N) (u.bheap:push (random 1d0) heap))
     ;; test

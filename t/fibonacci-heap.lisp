@@ -19,21 +19,22 @@
 (5am:in-suite :fibonacci-heap)
 
 (5am:test fibonacci-heap-test
-  (let ((N 1000)
-	(fib (make-instance 'u.fheap:fibonacci-heap)))
+  (let* ((N 1000)
+	 (heap (make-instance 'u.fheap:fibonacci-heap))
+	 (order (u.fheap:order heap)))
     ;; insert
-    (iter (repeat N) (u.fheap:push (random 1d0) fib))
+    (iter (repeat N) (u.fheap:push (random 1d0) heap))
     ;; random decrement
     (iter (for ii below N)
-	  (handler-case (u.fheap:decrement (random 1d0) ii fib)
+	  (handler-case (u.fheap:decrement (random 1d0) ii heap)
 	    (u.fheap:fibonacci-heap-decrement-infeasible () nil)))
     ;; test
     (is
      (iter (repeat N)
 	   (with prev-min = nil)
-	   (let ((cur-min (u.fheap:pop fib)))
+	   (let ((cur-min (u.fheap:pop heap)))
 	     ;; check ordering
-	     (if (and prev-min (not (funcall (u.fheap:order fib) prev-min cur-min)))
+	     (if (and prev-min (not (funcall order prev-min cur-min)))
 		 (return nil))
 	     (setf cur-min prev-min))
 	   (finally (return t))))))
