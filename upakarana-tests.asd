@@ -13,21 +13,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-(asdf:defsystem :upakarana
+(asdf:defsystem :upakarana-tests
   :licence "GPL"
   :author "See AUTHORS"
-  :depends-on (#:iterate #:alexandria)
+  :depends-on (#:iterate #:alexandria #:upakarana)
   :components
-  ((:module #:src :components
+  ((:module #:t :components
 	    ((:file "package")
-	     (:module #:utilities :pathname "" :depends-on ("package") :components
-		      ((:file "functions")
-		       (:file "macros" :depends-on ("functions"))
-		       (:file "set" :depends-on ("macros" "functions"))
-		       (:file "vector" :depends-on ("macros" "functions"))
-		       (:file "dlist" :depends-on ("macros" "functions"))
-		       (:file "union-find" :depends-on ("macros" "functions"))
-		       (:file "binary-heap" :depends-on ("macros" "functions"))
-		       (:file "fibonacci" :depends-on ("dlist"))
-		       (:file "fourier-motzkin" :depends-on ("macros" "functions" "vector"))
-		       (:file "simplex" :depends-on ("macros" "functions" "vector"))))))))
+	     (:file "simplex")))))

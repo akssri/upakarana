@@ -53,4 +53,17 @@
 (defpackage "UPAKARANA-VECTOR"
   (:nicknames :u.vec)
   (:use #:common-lisp #:upakarana)
-  (:export #:foldr #:foldl #:extreme #:copy! #:map!))
+  (:export #:foldr #:foldl #:extreme #:copy! #:map! #:<-))
+
+(defpackage "UPAKARANA-FOURIER-MOTZKIN"
+  (:nicknames :u.fm)
+  (:use #:common-lisp #:alexandria #:iterate #:upakarana #:upakarana-vector)
+  (:export #:inequation-dtype #:inequation #:make-inequation #:inequation-row #:inequation-op
+	   #:fourier-motzkin-infeasible #:fourier-motzkin))
+
+(defpackage "UPAKARANA-SIMPLEX"
+  (:nicknames :u.splx)
+  (:use #:common-lisp #:alexandria #:iterate #:upakarana #:upakarana-vector)
+  (:export #:simplex-dtype #:simplex-itype
+	   #:simplex-infeasible #:simplex-unbounded #:simplex-exceeded-max-iterations
+	   #:csc-matrix #:simplex))

@@ -74,3 +74,17 @@
     (loop :for i :of-type fixnum :from 0 :below n
        :do (funcall lock (funcall key in (the fixnum (+ of/in i))) out (the fixnum (+ of/out i))))
     out))
+
+(defmacro <- (indices place &rest body)
+  (letv* (((op arr &rest loop-indices) place))
+    (assert (member op '(aref)))
+    (alexandria:once-only (arr)
+      `(progn
+	 ,(apply #'recursive-append
+		 (append (mapcar #'(lambda (idx)
+				     (letv* (((var &optional start end) (alexandria:ensure-list idx)))
+				       (let ((loop-dimension (position var loop-indices)))
+					 `(loop :for ,var :from ,(or start 0) :below ,(or end `(array-dimension ,arr ,loop-dimension)) :do))))
+				 indices)
+			 `((setf (,op ,arr ,@loop-indices) (progn ,@body)))))
+	 ,arr))))
