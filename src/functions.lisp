@@ -58,7 +58,7 @@
   "(CARTESIAN-PRODUCT list &rest more-lists) => list1 x list2 x list3 ...
 
    Example:
-   UPAKARANA> (cartesian-product '(0 1) '(0 1)  '(0 1))
+   > (cartesian-product '(0 1) '(0 1)  '(0 1))
    ((0 0 0) (1 0 0) (0 1 0) (1 1 0) (0 0 1) (1 0 1) (0 1 1) (1 1 1))
 "
   (if more-lists
@@ -180,17 +180,17 @@
   "(BINARY-SEARCH val lb ub vec &key [order #'<] [test #'=]) => index existsp
   Searches a sorted vector @arg{val} for @arg{val} in the index range [lb, ub).
 
-  UPAKARANA> (binary-search 1.2 0 2 #(1 5 8 19))
+  > (binary-search 1.2 0 2 #(1 5 8 19))
   1
   NIL
-  UPAKARANA> (binary-search 9 0 2 #(1 5 8 19))
+  > (binary-search 9 0 2 #(1 5 8 19))
   NIL
   2
-  UPAKARANA> (binary-search 8 0 2 #(1 5 8 19))
+  > (binary-search 8 0 2 #(1 5 8 19))
   NIL
   2
   M>
-  UPAKARANA> (binary-search 5 0 2 #(1 5 8 19))
+  > (binary-search 5 0 2 #(1 5 8 19))
   1
   T"
   (declare (type fixnum lb ub)
@@ -212,7 +212,7 @@
 
   Similar to CL:SORT, except that the lisp-vector is sorted in-place (qsort), and the index of the sorted elements (permutation action) is returned.
 
-  UPAKARANA> (sort-index #(2 3 1 4 5) #'<)
+  > (sort-index #(2 3 1 4 5) #'<)
   #(1 2 3 4 5)
   #(2 0 1 3 4)"
   (declare (type vector seq))
