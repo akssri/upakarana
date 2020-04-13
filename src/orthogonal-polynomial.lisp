@@ -1,4 +1,3 @@
-;; -*- Mode: lisp; Syntax: ansi-common-lisp; Base: 10 -*-
 ;; Copyright (c) 2020 Akshay Srinivasan <akssri@vakra.xyz>
 
 ;; This program is free software: you can redistribute it and/or modify
