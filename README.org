@@ -7,19 +7,19 @@ The core package (#:upakarana) contains quite a few utility functions & macros; 
 - union-find
   standard UFD with one-pass path-compression
 - hash-set
-  use a hash table as a set
+  utitilies for using a hash table as a set
 - doubly-linked-list
-  module also defines iteration macros for iterate.
+  add a rdc with your car and cdr; also defines iteration macros for iterate.
 - fibonacci-heap
-  node tracking with a array table.
+  usual fib heap; node tracking with an array table.
 - binary-heap
-  no node tracking support as yet (affects graph search).
+  everyone's favorite heap using extensible vector; no node tracking support as yet (affects graph search).
 - fourier-motzkin
-  fourier-motzkin for elimination of variables from linear (integer) inequaties; not accelerated.
+  fourier-motzkin elimination of variables from linear (integer) inequaties for polyhedral enumeration; not accelerated.
 - simplex
-  revised simplex method for solving sparse LPs
+  revised simplex method for solving sparse LPs.
 - orthogonal-polynomial
-  classical polynomial families/evaluation/derivatives & general quadrature via Golub-Welsch
+  classical ortho-polynomial families; their evaluation, derivatives & quadrature (Golub-Welsch)
 - ziggurat
   generate a ziggurat sampler automatically using bisection, Newton-Raphson and complex-step (Cauchy-Riemann) AD.
 - random
@@ -28,7 +28,8 @@ The core package (#:upakarana) contains quite a few utility functions & macros; 
 The tests for these packages should also serve as examples; these can be found in 't/'.
 
 * dependencies
-  उपकरण/upakarana depends on: {~alexandria~, ~iterate~}
+  उपकरण/upakarana depends on: {~alexandria~, ~iterate~}. 
+  These are quicklisp-able.
 
 * authors/credits
 - The symmetric-tridiagonal eigenvalue solver IMTQLX is originally from,
