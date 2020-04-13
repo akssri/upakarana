@@ -34,7 +34,7 @@
 
    Originally from cl-randist by Leonardo Varuzza et.al."
   (declare (type double-float a b))
-  (let* ((x (- 1 (random-uniform-kernel)))
+  (let* ((x (- 1 (uniform)))
 	 (z (expt x (/ -1d0 a))))
     (declare (type double-float x z))
     (* b z)))
@@ -45,12 +45,12 @@
   (declaim (inline exponential-function exponential-tail-sampler))
   (defun exponential-function (x) (exp (- x)))
   (defun exponential-tail-sampler (r0 f0 &optional (type 'double-float))
-    (let* ((u1 (- 1 (random-uniform-kernel type))))
+    (let* ((u1 (- 1 (uniform type))))
       (+ r0 (* -1 (log u1)))))
   (letv* ((points v (u.ziggurat:ziggurat-bisect #'exponential-function 15d0 :n-divisions (expt 2 8) :x_0-atol 1d-14))
 	  (points (cons 0d0 (cdr points)))
 	  (form (u.ziggurat:ziggurat-compile #'exponential-function points v
-					     #'random-uniform-kernel #'random-byte-kernel #'exponential-tail-sampler
+					     #'uniform #'random-byte #'exponential-tail-sampler
 					     :symmetricp nil)))
     (setf (symbol-function 'exponential)
 	  (funcall (compile nil `(lambda () ,form)))
@@ -72,7 +72,7 @@
   (letv* ((points v (u.ziggurat:ziggurat-bisect #'gaussian-function 1d0 :n-divisions (expt 2 7)))
 	  (points (cons 0d0 (cdr points)))
 	  (form (u.ziggurat:ziggurat-compile #'gaussian-function (cons 0d0 (cdr points)) v
-					     #'random-uniform-kernel #'random-byte-kernel #'gaussian-tail-sampler)))
+					     #'uniform #'random-byte #'gaussian-tail-sampler)))
     (setf (symbol-function 'normal)
 	  (funcall (compile nil `(lambda () ,form)))
 	  (documentation 'normal 'function)

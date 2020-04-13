@@ -78,7 +78,7 @@
   (:nicknames :u.opoly)
   (:use #:common-lisp #:alexandria #:iterate #:upakarana #:upakarana-vector)
   (:export #:orthogonal-polynomial #:an #:bn #:cn #:p0 #:v0 #:vn ;; class & slots
-	   #:evaluate-orthopoly #:lagrange-derivative-matrix     ;; evaluation, derivatives etc.
+	   #:horner #:evaluate #:lagrange-polynomial-derivatives ;; evaluation, derivatives etc.
 	   #:alpha-n #:beta-n #:norm-square                      ;; normalized recurrence coefficients
 	   #:gauss-quadrature #:imtqlx))                         ;; quadrature
 

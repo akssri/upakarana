@@ -15,6 +15,15 @@
 
 (in-package #:upakarana-orthogonal-polynomial)
 
+(defun horner (x coeffs &aux (ret 0))
+  "(HORNER x coeffs) => out
+   x: point of evaluation
+   coeffs: coefficients of the polynomial
+   out: value taken by the polynomial at x."
+  (iter (for ii from (1- (length coeffs)) downto 0)
+    (setf ret (+ (* x ret) (aref coeffs ii))))
+  ret)
+
 ;; orthogonal polynomial
 (defclass orthogonal-polynomial ()
   ((an :initarg :an)
@@ -103,7 +112,15 @@
 	(:cn (n) (t (* 2 (1- n))))
 	(:p0 1) (:v0 (sqrt pi)))))))
 ;;
-(defun evaluate-orthopoly (x n p &optional (n-grad 0))
+(defun evaluate (x n p &optional (n-grad 0))
+  "(EVALUATE x n p [n-grad 0]) => *out
+   x: point of evaluation
+   n: order of the polynomial in the family
+   p: orthogonal polynomial object
+   n-grad: number of derivatives to evaluate.
+   out: function and derivative values at x."
+  (declare (type orthogonal-polynomial p)
+	   (type (integer 0) n n-grad))
   (with-slots (an bn cn p0) p
     (let* ((dp (make-array (list (1+ n-grad) 2) :initial-element 0)))
       ;; setup
@@ -115,7 +132,7 @@
 	    (if (<= 1 n-grad)
 		(setf (aref dp 1 1) (* p0 (funcall an 1))))))
       ;; recurrence
-      (iter (for j from 2 below n)
+      (iter (for j from 2 to n)
 	(let ((aj (funcall an j)) (bj (funcall bn j)) (cj (funcall cn j)))
 	  (iter (for i from 0 to n-grad)
 	    (let ((dpi+ (+ (* (aref dp i 1) (+ (* aj x) bj)) (if (< 0 i) (* i aj (aref dp (1- i) 0)) 0) (* (- cj) (aref dp i 0)))))
@@ -124,7 +141,12 @@
       ;; return
       (values-list (iter (for ii below (1+ n-grad)) (collect (aref dp ii 1)))))))
 
-(defun lagrange-derivative-matrix (x)
+(defun lagrange-polynomial-derivatives (x)
+  "(LAGRANGE-POLYNOMIAL-DERIVATIVES x) => D
+   x: vector of knot points of size n
+   D: 2d array size (n, n); D_{ij} = L_j'(x_i),
+   where,
+   L_j(x) - Lagrange interpolating polynomial supported at x_j."
   (let* ((n-knots (length x))
 	 (ret (make-array (list n-knots n-knots))))
     (dotimes (n n-knots)
@@ -139,12 +161,15 @@
     ret))
 ;; normalized recurrence
 (defun alpha-n (n p)
-  "x P_n = \alpha_n P_{n - 1} + \beta_{n + 1} P_{n} + \alpha_{n + 1} P_{n + 1},
+  "(ALPHA-N n p) => \alpha_n
+   x P_n = \alpha_n P_{n - 1} + \beta_{n + 1} P_{n} + \alpha_{n + 1} P_{n + 1},
    where P_n are orthonormal.
 
    The recurrence relation for the orthonormal family can be obtained using the following correspondence,
    \alpha_n = \sqrt{c_{n + 1} \over a_{n + 1} a_n}.
    \beta_n = {-b_n \over a_n}."
+  (declare (type orthogonal-polynomial p)
+	   (type (integer 0) n))
   (with-slots (an bn cn) p
     (cond
       #+nil
@@ -157,19 +182,24 @@
       (t (error "alpha-n only defined for n >= 1")))))
 
 (defun beta-n (n p)
-    "x P_n = \alpha_n P_{n - 1} + \beta_{n + 1} P_{n} + \alpha_{n + 1} P_{n + 1},
-     where P_n are orthonormal.
+  "(BETA-N n p) => \beta_n
+   x P_n = \alpha_n P_{n - 1} + \beta_{n + 1} P_{n} + \alpha_{n + 1} P_{n + 1},
+   where P_n are orthonormal.
 
-     The recurrence relation for the orthonormal family can be obtained using the following correspondence,
-     \alpha_n = \sqrt{c_{n + 1} \over a_{n + 1} a_n}.
-     \beta_n = {-b_n \over a_n}."
+   The recurrence relation for the orthonormal family can be obtained using the following correspondence,
+   \alpha_n = \sqrt{c_{n + 1} \over a_{n + 1} a_n}.
+   \beta_n = {-b_n \over a_n}."
+  (declare (type orthogonal-polynomial p)
+	   (type (integer 0) n))
   (with-slots (an bn cn) p
     (cond
       ((<= 1 n) (* -1 (funcall bn n) (/ (funcall an n))))
       (t (error "beta-n only defined for n >= 1")))))
 
 (defun norm-square (n p &optional (v0 (slot-value p 'v0)))
-  "(P_n, P_n)_w"
+  "(NORM-SQUARE n p [v0 (slot-value p 'v0)]) => (P_n, P_n)_w"
+  (declare (type orthogonal-polynomial p)
+	   (type (integer 0) n))
   (with-slots (an bn cn vn) p
     (labels ((vn (n)
 	       (cdr (assoc! n vn :default
@@ -180,10 +210,19 @@
       (* (vn n) v0))))
 ;;
 (defun gauss-quadrature (n p)
-  "Computes knot points and quadrature weights by diagonalizing the Jacobi operator associated with the orthogonal polynomial [1,2],
+  "(GAUSS-QUADRATURE n p) => x, w
+   n: order of the quadrature
+   x: sampling points, roots of the n'th polynomial
+   w: quadrature weights
 
+   Integrals can be approximated with,
+   \int_{D} w(x) f(x) dx \approx \sum_i w_i f(x_i).
+
+   This function computes x,w by diagonalizing the Jacobi operator of @arg{p} (Golub-Welsch algorithm) [1,2].
    [1] Golub, Gene H., and John H. Welsch. Calculation of Gauss Quadrature rules. Mathematics of computation 23.106 (1969): 221-230.
    [2] Srinivasan, Akshay. Spectral Methods: Applications to Quantum Mechanics and Flow Stability. B.Tech thesis (2011), NITK, Surathkal"
+  (declare (type orthogonal-polynomial p)
+	   (type (integer 1) n))
   (let* ((dn (make-array n :initial-element 0d0 :element-type 'double-float))
 	 (en (make-array n :initial-element 0d0 :element-type 'double-float))
 	 (zn (make-array n :initial-element 0d0 :element-type 'double-float)))

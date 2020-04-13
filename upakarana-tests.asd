@@ -24,4 +24,5 @@
 	     (:file "binary-heap")
 	     (:file "fibonacci-heap")
 	     (:file "fourier-motzkin")
-	     (:file "simplex")))))
+	     (:file "simplex")
+	     (:file "orthogonal-polynomial")))))
