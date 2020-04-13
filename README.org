@@ -25,7 +25,7 @@ The core package (#:upakarana) contains quite a few utility functions & macros; 
 - random
   fast random samplers, notably for exponential (ziggurat), normal (ziggurat) and gamma distributions
 
-The tests for these packages should also serve as examples, and can be found in 't/'.
+The tests for these packages should also serve as examples; these can be found in 't/'.
 
 * dependencies
   उपकरण/upakarana depends on: {~alexandria~, ~iterate~}
