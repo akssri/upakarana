@@ -73,3 +73,21 @@
   (:export #:simplex-dtype #:simplex-itype
 	   #:simplex-infeasible #:simplex-unbounded #:simplex-exceeded-max-iterations
 	   #:csc-matrix #:simplex))
+
+(defpackage "UPAKARANA-ORTHOGONAL-POLYNOMIAL"
+  (:nicknames :u.opoly)
+  (:use #:common-lisp #:alexandria #:iterate #:upakarana #:upakarana-vector)
+  (:export #:orthogonal-polynomial #:an #:bn #:cn #:p0 #:v0 #:vn ;; class & slots
+	   #:evaluate-orthopoly #:lagrange-derivative-matrix     ;; evaluation, derivatives etc.
+	   #:alpha-n #:beta-n #:norm-square                      ;; normalized recurrence coefficients
+	   #:gauss-quadrature #:imtqlx))                         ;; quadrature
+
+(defpackage "UPAKARANA-ZIGGURAT"
+  (:nicknames :u.ziggurat)
+  (:use #:common-lisp #:alexandria #:iterate #:upakarana)
+  (:export #:ziggurat-bisect #:ziggurat-compile))
+
+(defpackage "UPAKARANA-RANDOM"
+  (:nicknames :u.random)
+  (:use #:common-lisp #:alexandria #:iterate #:upakarana #:upakarana-vector)
+  (:export #:random-byte #:uniform #:pareto #:exponential #:normal #:gamma #:beta #:chi-square #:standard-t #:dirichlet))
