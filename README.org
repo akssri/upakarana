@@ -1,0 +1,43 @@
+उपकरण (upakarana) is a set of CL utilities that have their origin in matlisp.
+
+* functionality
+The core package (#:upakarana) contains quite a few utility functions & macros; additionally the following packages exist with the "#:upakarana-" prefix,
+- vector
+  usual foldl, foldr etc. and a useful iteration macro
+- union-find
+  standard UFD with one-pass path-compression
+- hash-set
+  use a hash table as a set
+- doubly-linked-list
+  module also defines iteration macros for iterate.
+- fibonacci-heap
+  node tracking with a array table.
+- binary-heap
+  no node tracking support as yet (affects graph search).
+- fourier-motzkin
+  fourier-motzkin for elimination of variables from linear (integer) inequaties; not accelerated.
+- simplex
+  revised simplex method for solving sparse LPs
+- orthogonal-polynomial
+  classical polynomial families/evaluation/derivatives & general quadrature via Golub-Welsch
+- ziggurat
+  generate a ziggurat sampler automatically using bisection, Newton-Raphson and complex-step (Cauchy-Riemann) AD.
+- random
+  fast random samplers, notably for exponential (ziggurat), normal (ziggurat) and gamma distributions
+
+The tests for these packages should also serve as examples, and can be found in 't/'.
+
+* dependencies
+  उपकरण/upakarana depends on: {~alexandria~, ~iterate~}
+
+* authors/credits
+- The symmetric-tridiagonal eigenvalue solver IMTQLX is originally from,
+  'Sylvan Elhay, Jaroslav Kautsky, Algorithm 655: IQPACK, FORTRAN Subroutines for the Weights of Interpolatory Quadrature, ACM Transactions on Mathematical Software, Volume 13, Number 4, December 1987, pages 399-415.',
+  https://dl.acm.org/doi/abs/10.1145/35078.214351
+
+  The code from the paper was f2cl-ed and simplified to standard Common Lisp; documentation comes from, 
+  https://people.sc.fsu.edu/~jburkardt/c_src/quadrature_golub_welsch/quadrature_golub_welsch.html
+
+- Certain samplers in random.lisp come from disparate sources; these are acknowledged therein.
+
+- Akshay Srinivasan <akssri@vakra.xyz> (for everything else)
