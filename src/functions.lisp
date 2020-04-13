@@ -272,7 +272,7 @@
        :finally (return (values seq perm)))))
 
 (defun topological-sort (seq porder &key (key #'identity))
-  ;;(topsort '(fixnum integer double-float float (integer 0 10) real single-float) #'subtypep)
+  ;;(topological-sort '(fixnum integer double-float float (integer 0 10) real single-float) #'subtypep)
   ;;(sort '(fixnum integer double-float float (integer 0 10) real single-float) #'subtypep)
   (let* ((seq (coerce seq 'vector))
 	 (adj (map 'vector (lambda (x) (cons 0 nil)) seq))
