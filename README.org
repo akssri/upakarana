@@ -32,7 +32,7 @@ The tests for these packages should also serve as examples; these can be found i
   These are quicklisp-able.
 
 * authors/credits
-- The symmetric-tridiagonal eigenvalue solver IMTQLX is originally from,
+- The symmetric-tridiagonal eigenvalue/projected eigenvector solver IMTQLX is originally from,
   'Sylvan Elhay, Jaroslav Kautsky, Algorithm 655: IQPACK, FORTRAN Subroutines for the Weights of Interpolatory Quadrature, ACM Transactions on Mathematical Software, Volume 13, Number 4, December 1987, pages 399-415.',
   https://dl.acm.org/doi/abs/10.1145/35078.214351
 
