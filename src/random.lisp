@@ -5,20 +5,20 @@
 (declaim (inline random-byte random-uniform))
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun random-byte (arg)
-    "Random sample from the Uniform distribution on {0, arg-1}"
+    "Sample from the Uniform distribution on {0, arg-1}"
     (random (the unsigned-byte arg)))
   (defun uniform (&optional (type 'double-float))
-    "Random sample from the Uniform distribution on [0, 1)"
+    "Sample from the Uniform distribution on [0, 1)"
     (ecase type
       (single-float (scale-float (float (random-byte-kernel #.(expt 2 23)) 1.0) -23))
       (double-float (scale-float (float (random-byte-kernel #.(expt 2 52)) 1d0) -52)))))
 
 ;;
 (defun pareto (a b)
-  "
-  Random value for parato distribution:
-  p(x) dx = (a/b) / (x/b)^(a+1) dx     for x >= b
-"
+  "Sample from the pareto distribution:
+   p(x) dx = (a/b) / (x/b)^(a+1) dx     for x >= b
+
+   Originally from cl-randist by Leonardo Varuzza et.al."
   (declare (type double-float a b))
   (let* ((x (- 1 (random-uniform-kernel)))
 	 (z (expt x (/ -1d0 a))))
@@ -39,7 +39,10 @@
 					     #'random-uniform-kernel #'random-byte-kernel #'exponential-tail-sampler
 					     :symmetricp nil)))
     (setf (symbol-function 'exponential)
-	  (funcall (compile nil `(lambda () ,form))))))
+	  (funcall (compile nil `(lambda () ,form)))
+	  (documentation 'exponential 'function)
+  "Sample from the standard exponential distribution:
+   p(x) dx = exp(-x) dx     for x >= 0")))
 
 ;; normal distribution
 (declaim (ftype (function () double-float) normal))
@@ -57,51 +60,55 @@
 	  (form (u.ziggurat:ziggurat-compile #'gaussian-function (cons 0d0 (cdr points)) v
 					     #'random-uniform-kernel #'random-byte-kernel #'gaussian-tail-sampler)))
     (setf (symbol-function 'normal)
-	  (funcall (compile nil `(lambda () ,form))))))
+	  (funcall (compile nil `(lambda () ,form)))
+	  (documentation 'normal 'function)
+  "Sample from the standard normal distribution:
+   p(x) dx = (1//√2π) exp(-x^2/2) dx")))
 
 ;; gamma distribution
-(declaim (ftype (function (double-float) double-float) gamma))
-(defun gamma (a)
-  "
-  Samples from the Gamma distribution of order a > 1 defined by,
-  p(x) dx = {1 \over \Gamma(a)} x^{a-1} e^{-x} dx, x > 0,
-  using the method of Marsaglia and Tsang [1].
+(declaim (ftype (function (double-float &optional double-float) double-float) gamma))
+(defun gamma (a &optional (b 1d0))
+  "Sample from the gamma distribution with shape a > 0, and scale b > 1 defined by,
+   p(x) dx = {b^{a} \over \Gamma(a)} x^{a-1} e^{-bx} dx, x > 0,
+   using the method of Marsaglia and Tsang [1].
 
-  [1]. 'A Simple Method for generating gamma variables', ACM Transactions on Mathematical Software, Vol 26, No 3 (2000), p363-372.
+   [1]. 'A Simple Method for generating gamma variables', ACM Transactions on Mathematical Software, Vol 26, No 3 (2000), p363-372.
 
-  Implemented by J.D.Lamb@btinternet.com, minor modifications for GSL by Brian Gough.
-"
-  (declare (type (double-float 1d-256) a))
-  (let* ((x 0d0) (v 0d0) (u 0d0)
-	 (d (- a (/ 3d0)))
-	 (c (/ (/ 3d0) (the double-float (sqrt d)))))
-    (declare (double-float x v u d c))
-    (tagbody
-     start
-       (setf x (normal)
-	     v (+ 1d0 (* c x)))
-       ;;check validity
-       (when (<= v 0d0) (go start))
-       (setf v (* v v v)
-	     u (random-uniform-kernel))
-       ;;squeeze check
-       (when (< u (- 1d0 (* 0.0331d0 x x x x))) (go end))
-       ;;slow check
-       (when (< (log u) (+ (* 1/2 x x) (* d (+ 1 (- v) (the double-float (log v)))))) (go end))
-       ;;rinse-repeat
-       (go start)
-     end)
-    (* d v)))
+   Implemented by J.D.Lamb@btinternet.com, minor modifications for GSL by Brian Gough.
+
+   Originally from cl-randist by Leonardo Varuzza et.al."
+  (declare (type (double-float 1d-256) a b))
+  (if (< a 1d0)
+      (* (gamma (+ 1d0 a) b) (expt (uniform) (/ a)))
+      (let* ((x 0d0) (v 0d0) (u 0d0)
+	     (d (- a (/ 3d0)))
+ 	     (c (/ (/ 3d0) (sqrt d))))
+	(declare (double-float x v u d c))
+	(tagbody
+	 start
+	   (setf x (normal)
+		 v (+ 1d0 (* c x)))
+	   ;;check validity
+	   (when (<= v 0d0)
+	     (go start))
+	   (setf v (* v v v)
+		 u (random-uniform))
+	   ;;squeeze check
+	   (when (< u (- 1d0 (* 0.0331d0 x x x x))) (go end))
+	   ;;slow check
+	   (when (< (log u) (+ (* 0.5d0 x x) (* d (+ 1 (- v) (the double-float (log v)))))) (go end))
+	   ;;rinse-repeat
+	   (go start)
+	 end)
+	(* b d v))))
 
 ;;beta distribution
 (defun beta (a b)
-  "
-  The beta distribution has the form
-  p(x) dx = (Gamma(a + b)/(Gamma(a) Gamma(b))) x^(a-1) (1-x)^(b-1) dx
-  The method used here is the one described in Knuth.
+  "Sample from the beta distribution,
+   p(x) dx = (Gamma(a + b)/(Gamma(a) Gamma(b))) x^(a-1) (1-x)^(b-1) dx
+   The method used here is the one described in Knuth.
 
-  Originally from cl-randist by Leonardo Varuzza et.al.
-"
+   Originally from cl-randist by Leonardo Varuzza et.al."
   (declare (type double-float a b))
   (let ((x1 (gamma a))
 	(x2 (gamma b)))
@@ -109,30 +116,22 @@
     (/ x1 (+ x1 x2))))
 
 ;;chi-square
-(defun chi-square (nu
-		   &aux (nu (coerce nu 'double-float)))
-  "
-  Generate random variable for chi square distribution:
-  p(x) dx = (1/(2*Gamma(nu/2))) (x/2)^(nu/2 - 1) exp(-x/2) dx
+(defun chi-square (nu)
+  "Sample from the chi square distribution:
+   p(x) dx = (1/(2*Gamma(nu/2))) (x/2)^(nu/2 - 1) exp(-x/2) dx
 
-  Originally from cl-randist by Leonardo Varuzza et.al.
-"
+   Originally from cl-randist by Leonardo Varuzza et.al."
   (declare (type double-float nu))
   (* 2d0 (gamma (/ nu 2d0))))
 
 ;;t distribution
 (declaim (ftype (function (double-float) double-float) standard-t))
 (defun standard-t (nu)
-  "
-  The t-distribution has the form,
+  "Sampler from the standard t-distribution,
+   p(x) dx = (Gamma((nu + 1)/2)/(sqrt(pi nu) Gamma(nu/2)) * (1 + (x^2)/nu)^-((nu + 1)/2) dx
+   The method used here is the one described in Knuth.
 
-  p(x) dx = (Gamma((nu + 1)/2)/(sqrt(pi nu) Gamma(nu/2)) * (1 + (x^2)/nu)^-((nu + 1)/2) dx
-
-  The method used here is the one described in Knuth
-
-  Originally from cl-randist by Leonardo Varuzza et.al.
-  https://github.com/lvaruzza/cl-randist
-"
+   Originally from cl-randist by Leonardo Varuzza et.al."
   (declare (type double-float nu))
   (if (<= nu 2d0)
       (let ((y1 (normal))
@@ -168,8 +167,7 @@
    distributions with parameters a=\alpha_i, b=1, and renormalizing.
    See A.M. Law, W.D. Kelton, Simulation Modeling and Analysis (1991).
 
-   Originally by Gavin E. Crooks <gec@compbio.berkeley.edu> (2002)
- "
+   Originally by Gavin E. Crooks <gec@compbio.berkeley.edu> (2002)"
   (letv* ((alpha (coerce alpha '(simple-array double-float (*))))
 	  (K (length alpha))
 	  (ret (make-array K :element-type 'double-float)))
