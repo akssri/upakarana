@@ -32,5 +32,5 @@
 	     ;; check ordering
 	     (if (and prev-min (not (funcall order prev-min cur-min)))
 		 (return nil))
-	     (setf cur-min prev-min))
+	     (setf prev-min cur-min))
 	   (finally (return t))))))

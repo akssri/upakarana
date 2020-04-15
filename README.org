@@ -15,7 +15,7 @@ The core package (#:upakarana) contains quite a few utility functions & macros; 
 - binary-heap
   everyone's favorite heap using an extensible vector; no node tracking support as yet (affects graph search).
 - fourier-motzkin
-  fourier-motzkin elimination of variables from linear (integer) inequaties for polyhedral enumeration; not accelerated.
+  fourier-motzkin elimination of variables from linear (integer) inequalities for polyhedral enumeration; not accelerated.
 - simplex
   revised simplex method for solving sparse LPs.
 - orthogonal-polynomial
