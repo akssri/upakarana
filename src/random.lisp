@@ -24,8 +24,8 @@
   (defun uniform (&optional (type 'double-float))
     "Sample from the Uniform distribution on [0, 1)"
     (ecase type
-      (single-float (scale-float (float (random-byte-kernel #.(expt 2 23)) 1.0) -23))
-      (double-float (scale-float (float (random-byte-kernel #.(expt 2 52)) 1d0) -52)))))
+      (single-float (scale-float (float (random-byte #.(expt 2 23)) 1.0) -23))
+      (double-float (scale-float (float (random-byte #.(expt 2 52)) 1d0) -52)))))
 
 ;;
 (defun pareto (a b)
@@ -64,8 +64,8 @@
   (declaim (inline gaussian-function gaussian-tail-sampler))
   (defun gaussian-function (x) (exp (* -1/2 x x)))
   (defun gaussian-tail-sampler (r0 f0 &optional (type 'double-float))
-    (let* ((u1 (random-uniform-kernel type))
-	   (u2 (random-uniform-kernel type))
+    (let* ((u1 (uniform type))
+	   (u2 (uniform type))
 	   (x (* -1 (/ r0) (log u1)))
 	   (y (- 1 (log u2))))
       (if (> (+ y y) (* x x)) (+ x r0))))
