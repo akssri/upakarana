@@ -15,8 +15,8 @@
 
 (in-package #:upakarana)
 
-(defun make-extensible-vector ()
-  (make-array 0 :adjustable t :fill-pointer t))
+(defun make-extensible-vector (&key (element-type t))
+  (make-array 0 :adjustable t :fill-pointer t :element-type element-type))
 
 (defun maptree-if (predicate transformer tree)
   "(MAPTREE-IF predicate transformer tree)
