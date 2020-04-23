@@ -288,7 +288,7 @@
     (iter (for col.jj in-vector adj with-index jj) (with ll = 0)
       (iter (for (ii . vv) in (sort col.jj #'< :key #'first))
 	(setf (aref idx ll) ii
-	      (aref val ll) (* (if (<= 0 (aref row-sign ii)) 1 -1) vv))
+	      (aref val ll) (coerce (* (if (<= 0 (aref row-sign ii)) 1 -1) vv) 'simplex-dtype))
 	(incf ll))
       (setf (aref ptr (1+ jj)) ll))
     (make-csc-matrix :m m :n n :ptr ptr :idx idx :val val)))
