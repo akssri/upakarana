@@ -83,7 +83,7 @@
 			  (iter (for jj below (array-dimension A 1))
 				(if (/= (aref A ii jj) 0)
 				    (in :l0 (collect (list* ii jj (aref A ii jj)))))))))
-    (handler-case (u.splx:simplex c A-sparse (make-array (length b) :initial-element :=) b)
+    (handler-case (u.splx:linprog c A-sparse (make-array (length b) :initial-element :=) b)
       (u.splx:simplex-infeasible () :inf)
       (u.splx:simplex-unbounded () :unb))))
 

@@ -72,7 +72,9 @@
   (:use #:common-lisp #:alexandria #:iterate #:upakarana #:upakarana-vector)
   (:export #:simplex-dtype #:simplex-itype
 	   #:simplex-infeasible #:simplex-unbounded #:simplex-exceeded-max-iterations
-	   #:csc-matrix #:simplex))
+	   #:csc-matrix #:csc-matrix-m #:csc-matrix-n #:csc-matrix-ptr #:csc-matrix-idx #:csc-matrix-val
+	   #:make-tableau #:simplex-tableau #:n-slack #:n-artificial #:A #:b #:A-basic.t^{-1} #:row-basic #:col-basic
+	   #:simplex-solve #:linprog))
 
 (defpackage "UPAKARANA-ORTHOGONAL-POLYNOMIAL"
   (:nicknames :u.opoly)

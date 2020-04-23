@@ -20,18 +20,15 @@
 
 (define-condition simplex-infeasible (error)
   ((infeasible-row :initarg :infeasible-row)
-   (pivot-history :initarg :pivot-history)
-   (basic-variables :initarg :basic-variables)))
+   (tableau :initarg :tableau)))
 
 (define-condition simplex-unbounded (error)
   ((unbounded-variables :initarg :unbounded-variables)
-   (pivot-history :initarg :pivot-history)
-   (basic-variables :initarg :basic-variables)))
+   (tableau :initarg :tableau)))
 
 (define-condition simplex-exceeded-max-iterations (error)
   ((count :initarg :count)
-   (pivot-history :initarg :pivot-history)
-   (basic-variables :initarg :basic-variables)))
+   (tableau :initarg :tableau)))
 
 ;;
 (defstruct csc-matrix
@@ -42,21 +39,22 @@
   (val (make-array 0 :element-type 'simplex-dtype) :type (simple-array simplex-dtype (*))))
 
 (defun dense-csc-gemm! (alpha A B col-B beta C)
-  "compute alpha A^T B + beta C^T"
+  "C^T <- alpha A^T B[:, col-B] + beta C^T,
+   where B is a sparse csc-matrix."
   (if (/= beta 1) (<- (_ii _jj) (aref C _ii _jj) (* beta (aref C _ii _jj))))
   (let ((ptr (csc-matrix-ptr B))
 	(idx (csc-matrix-idx B))
 	(val (csc-matrix-val B)))
-    (loop :for b-jj :across col-B
-       :do (loop :for ptr-kk :from (aref ptr b-jj) :below (aref ptr (1+ b-jj))
+    (loop :for jj-b :across col-B
+       :do (loop :for ptr-kk :from (aref ptr jj-b) :below (aref ptr (1+ jj-b))
 	      :do (let ((kk (aref idx ptr-kk))
 			(s (* alpha (aref val ptr-kk))))
-		    (<- (_ii) (aref c c-jj _ii) (+ (aref c c-jj _ii) (* s (aref A kk _ii))))))
-       :counting t :into c-jj))
+		    (<- (_ii) (aref C jj-c _ii) (+ (aref C jj-c _ii) (* s (aref A kk _ii))))))
+       :counting t :into jj-c))
   C)
 
 (defun gemm! (alpha A b beta c &optional transpose-A)
-  "compute alpha A B + beta C"
+  "C <- alpha op(A) B + beta C"
   (if (/= beta 1) (<- (_ii _jj) (aref c _ii _jj) (* beta (aref c _ii _jj))))
   (if (not transpose-A)
       (loop :for ii :from 0 :below (array-dimension A 0)
@@ -67,7 +65,7 @@
   c)
 
 (defun gemv! (alpha A b beta c &optional transpose-A)
-  "compute A B + beta C"
+  "C <- op(A) B + beta C"
   (if (/= beta 1) (<- (_ii) (aref c _ii) (* beta (aref c _ii))))
   (if (not transpose-A)
       (loop :for ii :from 0 :below (array-dimension A 0)
@@ -80,154 +78,238 @@
 	       (<- (_ii) (aref c _ii) (+ (aref c _ii) (* s (aref A kk _ii)))))))
   c)
 
-;;
-(defun parse-constraints (c A op b)
-  (letv* ((row-basic (make-array (length b) :initial-element nil :fill-pointer t :adjustable t))
-	  (n-slack 0) (n-artificial 0))
-    ;;parse constraints, add artificial variables for phase-1
-    (iter (for op-ii in-vector op with-index ii)
-	  (ecase op-ii
-	    ((:=) (push (list* ii (list :artificial (prog1 n-artificial (incf n-artificial)))
-			      (if (<= 0 (aref b ii)) 1 -1))
-		       A))
-	    ((:<= :>=)
-	     (let ((sign (ecase op-ii (:<= 1) (:>= -1))))
-	       (push (list* ii (list :slack (prog1 n-slack (incf n-slack))) sign) A)
-	       (when (> 0 (* sign (aref b ii)))
-		 (push (list* ii (list :artificial (prog1 n-artificial (incf n-artificial))) (- sign)) A)))))
-	  (setf (aref row-basic ii) (second (first A))))
-    (values A row-basic n-slack n-artificial)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#|
+  revised simplex
+  ---------------
+  canonical form for simplex the tableau,
+  min c x
+      A x = b, b >= 0, A \in \mathbb{R}^{(m, n)}, m <= n
+      x >= 0
 
-(defun make-tableau (c A op b)
-  (letv* ((A row-basic n-slack n-artificial (parse-constraints c A op b))
-	  (m (length b)) (n (length c)))
-    (flet ((index (idx &optional type) (+ idx (case type (:slack n) (:artificial (+ n n-slack)) (t 0)))))
-      (letv* ((A (sort (remove-if #'(lambda (x) (= (cddr x) 0)) ;;remove zeros
-				  (map 'vector #'(lambda (x)
-						   (destructuring-bind (ii jj . dd) x
-						       (if (listp jj)
-							   (letv* (((type idx) jj))
-							     (list* ii (index idx type) dd))
-							   x)))
-				       A)) ;; sort in reverse-lex
-		       #'(lambda (x y) (if (/= (second x) (second y))
-					   (< (second x) (second y))
-					   (< (first x) (first y))))))
-	      (n-total (+ n n-slack n-artificial))
-	      (A-csc (make-csc-matrix :m m :n n-total ;;create CSC matrix
-				      :ptr (let ((ptr (make-array (1+ n-total) :element-type 'simplex-itype)))
-					     (iter (for jj from 0 below (1- (length ptr)))
-						   (iter (for dat in-vector A from (aref ptr jj) with-index kk)
-							 (letv* (((_i _j . _d) dat)) (when (/= jj _j) (finish)))
-							 (finally (setf (aref ptr (1+ jj)) kk))))
-					     ptr)
-				      :idx (map '(simple-array simplex-itype (*)) #'first A)
-				      :val (map '(simple-array simplex-dtype (*))
-						#'(lambda (x) (coerce (cddr x) 'simplex-dtype)) A)))
-	      (new-c (let ((new-c (make-array n-total :element-type 'simplex-dtype)))
-		       (<- ((_ii 0 (length c))) (aref new-c _ii) (coerce (aref c _ii) 'simplex-dtype))))
-	      (new-b (let ((new-b (make-array m :element-type 'simplex-dtype)))
-		       (<- (_ii) (aref new-b _ii) (coerce (aref b _ii) 'simplex-dtype)))))
-	;;
-	(letv* ((Btinv (make-array (list m m) :element-type 'simplex-dtype))
-		(col-basic (make-array (csc-matrix-n A-csc) :initial-element nil)))
-	  ;;translate index, setup col-basic array
-	  (iter (for rb in-vector row-basic with-index ii)
-		(letv* (((type idx) rb)
-			(new-idx (index idx type)))
-		  (setf (aref row-basic ii) new-idx
-			(aref col-basic new-idx) ii)))
-	  ;; scale A-csc and new-b, setup Binv
-	  (let ((ptr (csc-matrix-ptr A-csc))
-		(idx (csc-matrix-idx A-csc))
-		(val (csc-matrix-val A-csc)))
-	    ;;scale A-csc
-	    (iter (for ii in-vector idx with-index ii-ptr)
-		  (when (< (aref new-b ii) 0)
-		    (setf (aref val ii-ptr) (- (aref val ii-ptr)))))
-	    ;;scale new-b
-	    (iter (for ii from 0 below (length new-b))
-		  (when (< (aref new-b ii) 0)
-		    (setf (aref new-b ii) (- (aref new-b ii)))))
-	    ;;set-up Binv
-	    (iter (for ii from 0 below (length new-b))
-		  (letv* ((var-ii (aref row-basic ii))
-			  (nil (assert (= (1+ (aref ptr var-ii)) (aref ptr (1+ var-ii))) nil "non diagonal at ~a" ii)) ;;assert diagonal
-			  (dd (aref val (aref ptr var-ii))))
-		    (setf (aref Btinv ii ii) (/ dd)))))
-	  (values Btinv new-c A-csc new-b row-basic col-basic n-slack n-artificial))))))
+  identify basic variable set B of size m; non-basic set R = {1..n} \ B
 
-(defun pivot! (Btinv row Acol)
-  (loop :for ii :from 0 :below (array-dimension Btinv 0)
-     :do (when (/= row ii)
-	   (let ((s (/ (aref Acol 0 ii) (aref Acol 0 row))))
-	     (<- (_jj) (aref Btinv _jj ii) (- (aref Btinv _jj ii) (* s (aref Btinv _jj row)))))))
-  (let ((s (/ (aref Acol 0 row))))
-    (<- (_jj) (aref Btinv _jj row) (* s (aref Btinv _jj row))))
-  Btinv)
+  A_R x_R + A_B x_B = b
+  => x_b = A_B^{-1} (b - A_R x_R)
 
-(defun simplex (_c _A op _b &key (max-iterations 100))
-  (letv* ((Btinv c A b row-basic col-basic n-slack n-artificial (make-tableau _c _A op _b))
-	  (n (length c)) (m (length b))
-	  ;;workspace
-	  (non-basic (make-array n :element-type 'simplex-itype :fill-pointer 0))
-	  (cb (make-array (list m 1) :element-type 'simplex-dtype))
-	  (cb.Btinv (make-array (list m 1) :element-type 'simplex-dtype))
-	  (cnb (make-array (list (- n m) 1) :element-type 'simplex-dtype))
-	  ;;
-	  (Btinv.Ajj (make-array (list 1 m) :element-type 'simplex-dtype))
-	  (Binv.b (make-array (list m) :element-type 'simplex-dtype)))
-    ;;warm start ಇಗಾಗಿ ಇದನ್ನು ಬಿಡಿಸ ಬೇಕು
-    (labels ((compute-cost (c &optional (ncols n))
-	       (setf (fill-pointer non-basic) 0)
-	       (iter (for cb in-vector col-basic below ncols with-index ii)
-		     (unless cb
-		       (vector-push ii non-basic)
-		       (setf (aref cnb rii 0) (aref c ii))
-		       (counting t into rii)))
-	       (iter (for rb in-vector row-basic with-index ii)
-		     (setf (aref cb ii 0) (aref c rb)))
-	       (gemm! 1 Btinv cb 0 cb.Btinv)
-	       (values (dense-csc-gemm! -1 cb.Btinv A non-basic 1 cnb)
-		       (loop :for ii :from 0 :below (length b)
-			  :summing (* (aref b ii) (aref cb.Btinv ii 0)))))
-	     (compute-column (jj)
-	       (values (dense-csc-gemm! 1 Btinv A (vector jj) 0 Btinv.Ajj)
-		       (gemv! 1 Btinv b 0 Binv.b t)))
-	     (compute-b () (gemv! 1 Btinv b 0 Binv.b t))
-	     (solve (c &optional (ncols n))
-	       (iter (repeat max-iterations)
-		     (letv* ((c.nb c-lp (compute-cost c ncols))
-			     (amax-c (iter (for ii from 0 below (array-dimension c.nb 0))
-					   (let ((ci (aref c.nb ii 0))) ;;bland's rule
-					     (if (< ci 0) (finding ii maximizing (- ci))))))
-			     (nil (unless amax-c (return c-lp)))
-			     (amax-c (aref non-basic amax-c))
-			     ;;(nil (print amax-c))
-			     (A_j b (compute-column amax-c))
-			     (row (iter (for ii from 0 below (array-dimension A_j 1))
-					(if (< 0 (aref A_j 0 ii))
-					    (finding ii minimizing (/ (aref b ii) (aref A_j 0 ii)))))))
-		       (if (not row) (error 'simplex-unbounded :unbounded-variables (list amax-c)
-					    :pivot-history btinv :basic-variables row-basic)
-			   (progn
-			     (pivot! Btinv row A_j)
-			     (setf (aref col-basic (aref row-basic row)) nil
-				   (aref row-basic row) amax-c
-				   (aref col-basic amax-c) row))))
-		     (finally (restart-case (error 'simplex-exceeded-max-iterations :count max-iterations
-						   :pivot-history btinv :basic-variables row-basic)
-				(continue (answer) (when answer (solve c ncols))))))))
+  supp. A_B^{-1} b >= 0, so that,
+  (x_B, x_R) = (A_B^{-1} b, 0)
+  is a feasible solution.
+
+  cost = c_B A_B^{-1} b + (c_R - c_B A_B^{-1} A_R) x_R
+
+  let w_R = (c_R - c_B A_B^{-1} A_R)
+
+  if \exists i, (w_R)_i < 0, then there is scope for further decrease of the cost function along x_{R[i]}.
+  else, return (c_B A_B^{-1} b) as opt. value.
+
+  let x_j be the non-basic variable with the steepest negative gradient (bland's rule).
+
+  rewriting constraint eqn.,
+  x_B + A_B^{-1} A_R x_R = A_B^{-1} b           >= 0 (by assumption)
+
+  let M = A_B^{-1} A_R; M_j the column correspoding to x_j
+  let p = A_B^{-1} b
+
+  therefore,
+  x_B + M_{-j} x_{R-j} + M_j x_j = p            >= 0 (by assumption)
+
+  if M_j <= 0, then the LP is unbounded since x_j -> -\infty is feasible.
+  else, find row which minimizes max(p/M_j, 0),
+
+  r = argmin_i max(p/M_j, 0)[i]
+
+  setting x_j = max(p/M_j, 0)[r] maintains feasibility.
+  add 'j' into set of basic variables, and pop basic variable corresponding to 'r'.
+  update A_B^{-1}.
+
+  repeat.
+|#
+
+(defclass simplex-tableau ()
+  ((n-slack :initform 0 :initarg :n-slack)
+   (n-artificial :initform 0 :initarg :n-artificial)
+   (A :initarg :A) (b :initarg :b)
+   (A-basic.t^{-1} :initarg :A-basic.t^{-1})
+   (row-basic :initarg :row-basic) (col-basic :initarg :col-basic)))
+
+(defun simplex-pivot! (Bt^-1 r Mr)
+  "(PIVOT! Bt^-1 r Mr)
+   update @arg{Bt^-1} such that the @arg{r}'th column of B was replaced by B @arg{Mr}.
+
+   the O(n^2) update is computed by pivoting on the r-th row of the following tableau,
+   [I ; M_r | B^{-1}]
+  "
+  (loop :for ii :from 0 :below (array-dimension Bt^-1 0)
+     :do (if (/= ii r)
+	   (let ((s (/ (aref Mr 0 ii) (aref Mr 0 r))))
+	     (<- (_jj) (aref Bt^-1 _jj ii) (- (aref Bt^-1 _jj ii) (* s (aref Bt^-1 _jj r)))))))
+  (let ((s (/ (aref Mr 0 r))))
+    (<- (_jj) (aref Bt^-1 _jj r) (* s (aref Bt^-1 _jj r))))
+  Bt^-1)
+
+(defun simplex-cost (c tableau &optional (n (length c)))
+  (with-slots (A b A-basic.t^{-1} row-basic col-basic) tableau
+    ;;non-basic cb cb.Btinv cnb
+    (letv* ((m (length b))
+	    ;; enumerate non-basic variables
+	    (non-basic
+	     (iter (for bv-jj in-vector col-basic below n with-index jj)
+	       (unless bv-jj (collect jj result-type 'vector))))
+	    ;; allocate
+	    (c-basic (make-array (list m 1) :element-type 'simplex-dtype))
+	    (c-basic.A-basic^{-1} (make-array (list m 1) :element-type 'simplex-dtype))
+	    (cr-non-basic (make-array (list (length non-basic) 1) :element-type 'simplex-dtype)))
+      ;; setup c_{R}; (m, 1)
+      (iter (for nbv-ii in-vector non-basic with-index ii)
+	(setf (aref cr-non-basic ii 0) (aref c nbv-ii)))
+      ;; setup c_{B}; (m, 1)
+      (iter (for bv-ii in-vector row-basic with-index ii)
+	(setf (aref c-basic ii 0) (aref c bv-ii)))
+      ;; c_{B}^{T} A_{B}^{-1}; (m, 1)
+      (gemm! 1 A-basic.t^{-1} c-basic 0 c-basic.A-basic^{-1})
+      (values
+       ;; c_{B}^{T} A_{B}^{-1} b
+       (loop :for ii :below m :summing (* (aref b ii) (aref c-basic.A-basic^{-1} ii 0)))
+       ;; c_{R} - c_{B}^{T} A_{B}^{-1} A_{R}
+       (dense-csc-gemm! -1 c-basic.A-basic^{-1} A non-basic 1 cr-non-basic)
+       ;; non-basic variable indices
+       non-basic))))
+
+(defun simplex-column (jj tableau)
+  (with-slots (A b A-basic.t^{-1}) tableau
+    (letv* ((m (length b)))
+      (values-n (if jj 2 1)
+       ;; A_{B}^{-1} b; (m,)
+       (gemv! 1 A-basic.t^{-1} b 0 (make-array (list m) :element-type 'simplex-dtype) t)
+       ;; A_{B}^{-1} A[:, jj]; (1, m)
+       (dense-csc-gemm! 1 A-basic.t^{-1} A (vector jj) 0 (make-array (list 1 m) :element-type 'simplex-dtype))))))
+
+(defun simplex-solve (c tableau &optional (n (length c)) (max-iterations 100))
+  (with-slots (A-basic.t^{-1} row-basic col-basic non-basic) tableau
+    (iter (repeat max-iterations)
+      (letv* ((cost-feasible cr-non-basic non-basic (simplex-cost c tableau n))
+	      (pivot-col (iter (for nb-ii in-vector non-basic with-index ii)
+			   (let ((cr-i (aref cr-non-basic ii 0))) ;;bland's rule
+			     (if (< cr-i 0) (finding nb-ii maximizing (- cr-i))))))
+	      (nil (unless pivot-col (return cost-feasible)))
+	      (A-basic^{-1}.b M-pivot-col (simplex-column pivot-col tableau))
+	      (pivot-row
+	       (iter (for ii from 0 below (array-dimension M-pivot-col 1))
+		 (if (< 0 (aref M-pivot-col 0 ii))
+		     (finding ii minimizing (/ (aref A-basic^{-1}.b ii) (aref M-pivot-col 0 ii)))))))
+	(if (not pivot-row)
+	    (error 'simplex-unbounded :unbounded-variables (list pivot-col) :tableau tableau)
+	    (progn
+	      (simplex-pivot! A-basic.t^{-1} pivot-row M-pivot-col)
+	      (setf (aref col-basic (aref row-basic pivot-row)) nil
+		    (aref row-basic pivot-row) pivot-col
+		    (aref col-basic pivot-col) pivot-row))))
+      (finally (restart-case (error 'simplex-exceeded-max-iterations :count max-iterations :tableau tableau)
+		 (continue (answer) (when answer (simplex-solve c tableau n max-iterations))))))))
+
+(defun linprog (c A op b &key (max-iterations 100) (tableau (make-tableau A op b)))
+  "(LINPROG c A op b &key (max-iterations 100))
+   solve the LP,
+   min   <c, x>, st. x >= 0,  A x op b
+  "
+  (with-slots (row-basic col-basic n-artificial) tableau
+    (let ((n-total (length col-basic)))
       ;;phase-1
-      (let ((c (make-array (length c) :element-type 'simplex-dtype)))
-	(iter (for rv in-vector row-basic) (setf (aref c rv) (coerce 1 'simplex-dtype)))
-	(unless (= 0 (solve c))
-	  (error 'simplex-infeasible
-		 :pivot-history (compute-b) :basic-variables row-basic)))
+      (let ((c-feasible (make-array n-total :element-type 'simplex-dtype)))
+	(iter (for rv in-vector row-basic) (setf (aref c-feasible rv) (coerce 1 'simplex-dtype)))
+	(unless (= 0 (simplex-solve c-feasible tableau (length c-feasible) max-iterations))
+	  (error 'simplex-infeasible :tableau tableau)))
       ;;phase-2
-      (let* ((opt (solve c (- n n-artificial)))
-	     (x (compute-b))
-	     (ret (make-array (- n n-artificial) :initial-element (coerce 0 'simplex-dtype) :element-type 'simplex-dtype)))
+      (letv* ((c-opt (make-array n-total :element-type 'simplex-dtype))
+	      (nil (<- ((ii 0 (length c))) (aref c-opt ii) (coerce (aref c ii) 'simplex-dtype)))
+	      (opt (simplex-solve c-opt tableau (- n-total n-artificial) max-iterations))
+	      (x (simplex-column nil tableau))
+	      (ret (make-array (- n-total n-artificial) :initial-element (coerce 0 'simplex-dtype) :element-type 'simplex-dtype)))
 	(iter (for ri in-vector row-basic with-index ii) (setf (aref ret ri) (aref x ii)))
-	(values opt ret)))))
-;;
+	(values opt ret tableau)))))
+
+;;tableau initialization;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun canonicalize-constraints (n b op)
+  (letv* ((row-basic (make-array (length b) :initial-element nil :fill-pointer t :adjustable t))
+	  (n-slack -1) (n-artificial -1) (A-slack nil)
+	  (new-b (let ((new-b (make-array (length b) :element-type 'simplex-dtype)))
+		   (<- (_ii) (aref new-b _ii) (coerce (aref b _ii) 'simplex-dtype)))))
+    (iter (for op-ii in-vector op with-index ii)
+      ;; set b_i <- |b_i|
+      (when (< (aref new-b ii) 0)
+	(setf (aref new-b ii) (- (aref new-b ii))))
+      ;; add slack & ←artificial variables
+      (ecase op-ii
+	((:=)
+	 ;; artificial slack variable v_i used for finding initial feasible solution (phase-1)
+	 ;; A_{i,:} * x = 0 -> A_{i,:} * x + v_i = b_i,  v_i >= 0       (b_i >= 0)
+	 (push (list* ii (list :artificial (incf n-artificial)) (if (<= 0 (aref b ii)) 1 -1)) A-slack))
+	((:<= :>=)
+	 (let ((sign (ecase op-ii (:<= 1) (:>= -1))))
+	   ;; A_{i,:} * x <= b_i -> A_{i,:} * x + s_i = b_i,  s_i >= 0, (b_i >= 0)
+	   (push (list* ii (list :slack (incf n-slack)) sign) A-slack)
+	   ;; the slack variable can be used as the basic variable when sign * b_i >= 0
+	   (unless (<= 0 (* sign (aref b ii)))
+	     ;; else add artificial variable
+	     ;; if b_i < 0 -> -A_{i,:} * x - s_i + v_i = -b_i
+	     (push (list* ii (list :artificial (incf n-artificial)) (- sign)) A-slack)))))
+      ;; set basic variable for row ii
+      (setf (aref row-basic ii) (second (first A-slack))))
+    (incf n-slack) (incf n-artificial)
+    ;;
+    (flet ((index (idx &optional type) (+ idx (case type (:slack n) (:artificial (+ n n-slack)) (t 0)))))
+      ;; compute offsets
+      (iter (for entry in A-slack)
+	(letv* (((_ (type idx) . _) entry))
+	  (setf (second entry) (index idx type))))
+      ;; basic-variable index
+      (iter (for bv-ii in-vector row-basic with-index ii)
+	(letv* (((type idx) bv-ii))
+	  (setf (aref row-basic ii) (index idx type)))))
+    ;;
+    (values A-slack new-b (coerce row-basic '(simple-array simplex-itype (*))) n-slack n-artificial)))
+
+(defun build-adj-list (coo)
+  (letv* ((adj (make-extensible-vector))
+	  (m n nptr (iter (for (ii jj . vv) in coo)
+		      (when (/= vv 0)
+			(iter (while (>= jj (length adj))) (vector-push-extend nil adj))
+			(push (cons ii vv) (aref adj jj))
+			(counting t into nptr)
+			(maximizing ii into m))
+		      (finally (return (values (1+ m) (length adj) nptr))))))
+    (values m n nptr adj)))
+
+(defun build-csc-matrix (m n nptr adj row-sign)
+  (letv* ((ptr (make-array (1+ n) :element-type 'simplex-itype))
+	  (idx (make-array (1+ nptr) :element-type 'simplex-itype))
+	  (val (make-array (1+ nptr) :element-type 'simplex-dtype)))
+    (iter (for col.jj in-vector adj with-index jj) (with ll = 0)
+      (iter (for (ii . vv) in (sort col.jj #'< :key #'first))
+	(setf (aref idx ll) ii
+	      (aref val ll) (* (if (<= 0 (aref row-sign ii)) 1 -1) vv))
+	(incf ll))
+      (setf (aref ptr (1+ jj)) ll))
+    (make-csc-matrix :m m :n n :ptr ptr :idx idx :val val)))
+
+(defun make-tableau (A op b)
+  (letv* ((m n nptr A-adj (build-adj-list A))
+	  (nil (assert (= m (length b)) nil "matrix size mismatch"))
+	  (A-slack new-b row-basic n-slack n-artificial (canonicalize-constraints n b op))
+	  ;; update adj-list
+	  (nil (iter (for (ii jj . vv) in A-slack)
+		 (when (/= vv 0)
+		   (iter (while (>= jj (length A-adj))) (vector-push-extend nil A-adj))
+		   (push (cons ii vv) (aref A-adj jj)))))
+	  (A-csc (build-csc-matrix m (+ n n-slack n-artificial) (+ nptr n-slack n-artificial) A-adj b))
+	  (Btinv (make-array (list m m) :element-type 'simplex-dtype))
+	  (col-basic (make-array (csc-matrix-n A-csc) :initial-element nil)))
+    ;; setup col-basic and Btinv
+    (iter (for bv-ii in-vector row-basic with-index ii)
+      (setf (aref col-basic bv-ii) ii
+	    (aref Btinv ii ii) (/ (aref (csc-matrix-val A-csc) (aref (csc-matrix-ptr A-csc) bv-ii)))))
+    (make-instance 'simplex-tableau
+		   :n-slack n-slack :n-artificial n-artificial
+		   :A A-csc :b new-b :A-basic.t^{-1} Btinv
+		   :row-basic row-basic :col-basic col-basic)))
