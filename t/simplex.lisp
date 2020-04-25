@@ -88,6 +88,10 @@
       (u.splx:simplex-unbounded () :unb))))
 
 (5am:test simplex-test
-  (is (equal
-       (mapcar #'run-simplex *simplex-lp-test-problems*)
-       '(:UNB :UNB -2 5 219/68 11 7 0))))
+  (let ((eps 1d-13))
+    (is (every #'(lambda (a b)
+		   (etypecase b
+		     (symbol (eql a b))
+		     (number (< (abs (- a b)) eps))))
+	       (mapcar #'run-simplex *simplex-lp-test-problems*)
+	       '(:UNB :UNB -2 5 219/68 11 7 0)))))
