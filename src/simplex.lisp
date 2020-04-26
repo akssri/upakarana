@@ -30,9 +30,16 @@
   "C^T <- alpha A^T B[:, col-B] + beta C^T,
    where B is a sparse csc-matrix."
   (declare (type (simple-array simplex-dtype (* *)) A C)
+	   (type (simple-array simplex-itype (*)) col-B)
 	   (type csc-matrix B))
+  (assert (and (iter (for ci in-vector col-B) (always (<= 0 ci (1- (csc-matrix-n B)))))
+	       (= (array-dimension A 1) (array-dimension C 1))
+	       (= (array-dimension A 0) (csc-matrix-m B))
+	       (= (length col-B) (array-dimension C 0)))
+	  nil "invalid matrix dimensions for MM")
   (let ((alpha (coerce alpha 'simplex-dtype)) (beta (coerce beta 'simplex-dtype)))
-    (declare (type simplex-dtype alpha beta))
+    (declare (type simplex-dtype alpha beta)
+	     (optimize (speed 3) (safety 0)))
     (if (/= beta 1) (<- (_ii _jj) (aref C _ii _jj) (* beta (aref C _ii _jj))))
     (let ((ptr (csc-matrix-ptr B))
 	  (idx (csc-matrix-idx B))
@@ -48,8 +55,17 @@
 (defun gemm! (alpha A B beta C &optional transpose-A)
   "C <- alpha op(A) B + beta C"
   (declare (type (simple-array simplex-dtype (* *)) A B C))
+  (assert (if (not transpose-A)
+	      (and (= (array-dimension A 0) (array-dimension C 0))
+		   (= (array-dimension A 1) (array-dimension B 0))
+		   (= (array-dimension B 1) (array-dimension C 1)))
+	      (and (= (array-dimension A 1) (array-dimension C 0))
+		   (= (array-dimension A 0) (array-dimension B 0))
+		   (= (array-dimension B 1) (array-dimension C 1))))
+	  nil "invalid matrix dimensions for MM")
   (let ((alpha (coerce alpha 'simplex-dtype)) (beta (coerce beta 'simplex-dtype)))
-    (declare (type simplex-dtype alpha beta))
+    (declare (type simplex-dtype alpha beta)
+	     (optimize (speed 3) (safety 0)))
     (if (/= beta 1) (<- (_ii _jj) (aref c _ii _jj) (* beta (aref c _ii _jj))))
     (if (not transpose-A)
 	(loop :for ii :from 0 :below (array-dimension A 0)
@@ -71,12 +87,16 @@
   "
   (declare (type simplex-itype r)
 	   (type (simple-array simplex-dtype (* *)) Bt^-1 Mr))
-  (loop :for ii :from 0 :below (array-dimension Bt^-1 0)
-     :do (if (/= ii r)
-	   (let ((s (/ (aref Mr 0 ii) (aref Mr 0 r))))
-	     (<- (_jj) (aref Bt^-1 _jj ii) (- (aref Bt^-1 _jj ii) (* s (aref Bt^-1 _jj r)))))))
-  (let ((s (/ (aref Mr 0 r))))
-    (<- (_jj) (aref Bt^-1 _jj r) (* s (aref Bt^-1 _jj r))))
+  (assert (and (= (array-dimension Bt^-1 0) (array-dimension Bt^-1 1) (array-dimension Mr 1))
+	       (= (array-dimension Mr 0) 1) (<= 0 r (1- (array-dimension Bt^-1 0))))
+	  nil "invalid matrix dimensions for inverse update")
+  (locally (declare (optimize (speed 3) (safety 0)))
+    (loop :for ii :from 0 :below (array-dimension Bt^-1 0)
+	  :do (if (/= ii r)
+		  (let ((s (/ (aref Mr 0 ii) (aref Mr 0 r))))
+		    (<- (_jj) (aref Bt^-1 _jj ii) (- (aref Bt^-1 _jj ii) (* s (aref Bt^-1 _jj r)))))))
+    (let ((s (/ (aref Mr 0 r))))
+      (<- (_jj) (aref Bt^-1 _jj r) (* s (aref Bt^-1 _jj r)))))
   Bt^-1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -198,7 +218,7 @@
   "(PRIMAL-DIRECTION jj tableau) => A_{B}^{-1} A[:, jj]"
   (with-slots (A A-basic.t^{-1}) tableau
     ;; A_{B}^{-1} A[:, jj]; (1, m)
-    (dense-csc-gemm! 1 A-basic.t^{-1} A (vector jj) 1 (make-array (list 1 (array-dimension A-basic.t^{-1} 0)) :element-type 'simplex-dtype))))
+    (dense-csc-gemm! 1 A-basic.t^{-1} A (make-array 1 :initial-element jj :element-type 'simplex-itype) 1 (make-array (list 1 (array-dimension A-basic.t^{-1} 0)) :element-type 'simplex-dtype))))
 
 (defun primal-simplex-step (c tableau)
   "(PRIMAL-SIMPLEX-STEP c tableau [n (length c)])
