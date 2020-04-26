@@ -253,15 +253,15 @@
 (defun linprog (c A op b &key (max-iterations 100) (tableau (make-tableau A op b)))
   "(LINPROG c A op b &key (max-iterations 100))
    solve the LP,
-   min   <c, x>, st. x >= 0,  A x op b
-  "
-  (with-slots (row-basic col-basic n-artificial) tableau    
+   min   <c, x>, st. x >= 0,  A x op b"
+  (with-slots (row-basic col-basic n-artificial) tableau
     (let ((n-total (length col-basic)))
       ;;phase-1
-      (let ((c-feasible (make-array n-total :element-type 'simplex-dtype)))
-	(iter (for rv in-vector row-basic) (setf (aref c-feasible rv) (coerce 1 'simplex-dtype)))
-	(unless (= 0 (simplex-solve c-feasible tableau max-iterations))
-	  (error 'simplex-infeasible :tableau tableau)))
+      (when (and (> n-artificial 0) (some #'(lambda (bv) (<= (- n-total n-artificial) bv)) row-basic))
+	(let ((c-feasible (make-array n-total :element-type 'simplex-dtype)))
+	  (iter (for ii below n-artificial) (setf (aref c-feasible (- n-total ii 1)) (coerce 1 'simplex-dtype)))
+	  (unless (= 0 (simplex-solve c-feasible tableau max-iterations))
+	    (error 'simplex-infeasible :tableau tableau))))
       ;;phase-2
       (letv* ((c-opt (make-array (- n-total n-artificial) :element-type 'simplex-dtype))
 	      (nil (<- ((ii 0 (length c))) (aref c-opt ii) (coerce (aref c ii) 'simplex-dtype)))
