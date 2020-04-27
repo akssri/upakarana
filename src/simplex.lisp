@@ -285,7 +285,7 @@
    else one of the following conditions will be raised,
    - SIMPLEX-INFEASIBLE
    - SIMPLEX-UNBOUNDED
-   - SIMPLEX-EXCEEDED-MAX-ITERATIONS (handler: CONTINUE)"
+   - SIMPLEX-EXCEEDED-MAX-ITERATIONS (restart: CONTINUE)"
   (with-slots (row-basic col-basic n-artificial) tableau
     (let ((n-total (length col-basic)))
       ;;phase-1
