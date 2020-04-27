@@ -182,8 +182,10 @@
 (defun simplex-state (c tableau)
   "(SIMPLEX-STATE c tableau) => cost-feasible d-non-basic x-feasible λ-optimal
 			     => (c_{B}^{T} A_{B}^{-1} b, c_{R} - c_{B}^{T} A_{B}^{-1} A_{R}, A_{B}^{-1} b, c_{B}^{T} A_{B}^{-1})"
+  (declare (type (simple-array simplex-dtype (*)) c)
+	   (type simplex-tableau tableau))
   (with-slots (A b A-basic.t^{-1} row-basic col-basic) tableau
-    (letv* ((m (csc-matrix-m A)) (n (length c))
+    (letv* ((m (csc-matrix-m A)) (n (1- (length c)))
 	    (c-basic (make-array (list m 1) :element-type 'simplex-dtype))
 	    (non-basic (make-array (- n m) :initial-element -1 :element-type 'simplex-itype))
 	    (d-non-basic (make-array (list (- n m) 1) :element-type 'simplex-dtype))
@@ -195,15 +197,17 @@
 	  (counting t into ii)))
       ;; setup c_{R}; (m, 1)
       (iter (for nbv-ii in-vector non-basic with-index ii)
+	(assert (<= 0 nbv-ii (1- n)) nil "noo")
 	(setf (aref d-non-basic ii 0) (aref c nbv-ii)))
       ;; setup c_{B}; (m, 1)
       (iter (for bv-ii in-vector row-basic with-index ii)
+	(assert (<= 0 bv-ii (1- n)) nil "noo")
 	(setf (aref c-basic ii 0) (aref c bv-ii)))
       ;; c_{B}^{T} A_{B}^{-1}; (m, 1)
       (gemm! 1 A-basic.t^{-1} c-basic 1 c-basic.A-basic^{-1})
       (values
        ;; c_{B}^{T} A_{B}^{-1} b
-       (loop :for ii :below m :summing (* (aref b ii 0) (aref c-basic.A-basic^{-1} ii 0)))
+       (+ (aref c n) (loop :for ii :below m :summing (* (aref b ii 0) (aref c-basic.A-basic^{-1} ii 0))))
        ;; c_{R} - c_{B}^{T} A_{B}^{-1} A_{R}; (|R|, 1)
        (dense-csc-gemm! -1 c-basic.A-basic^{-1} A non-basic 1 d-non-basic)
        ;; A_{B}^{-1} b; (m, 1); x at feasibility
@@ -221,7 +225,7 @@
     (dense-csc-gemm! 1 A-basic.t^{-1} A (make-array 1 :initial-element jj :element-type 'simplex-itype) 1 (make-array (list 1 (array-dimension A-basic.t^{-1} 0)) :element-type 'simplex-dtype))))
 
 (defun primal-simplex-step (c tableau)
-  "(PRIMAL-SIMPLEX-STEP c tableau [n (length c)])
+  "(PRIMAL-SIMPLEX-STEP c tableau)
    assumption: primal feasibility (dual optimality),
 	       A_B^{-1} b >= 0"
   (with-slots (A-basic.t^{-1} row-basic col-basic) tableau
@@ -246,7 +250,7 @@
 	(dense-csc-gemm! 1 A-basic.t^{-1}_ii A non-basic 1 (make-array (list m 1) :element-type 'simplex-dtype))))))
 
 (defun dual-simplex-step (c tableau)
-  "(DUAL-SIMPLEX-STEP c tableau [n (length c)])
+  "(DUAL-SIMPLEX-STEP c tableau)
    assumption: dual feasibility (primal optimality),
 	       (c_R - c_B A_B^{-1} A_R) >= 0"
   (with-slots (A-basic.t^{-1} row-basic col-basic) tableau
@@ -273,18 +277,21 @@
 (defun linprog (c A op b &key (max-iterations 100) (tableau (make-tableau A op b)))
   "(LINPROG c A op b &key (max-iterations 100))
    solve the LP,
+   <c, x> = c_0 x_0 + c_1 x_1 ..... c_{n-1} x_{n-1} + c_{n}
+
    min   <c, x>, st. x >= 0,  A x op b"
   (with-slots (row-basic col-basic n-artificial) tableau
     (let ((n-total (length col-basic)))
       ;;phase-1
       (when (and (> n-artificial 0) (some #'(lambda (bv) (<= (- n-total n-artificial) bv)) row-basic))
-	(let ((c-feasible (make-array n-total :element-type 'simplex-dtype)))
+	(let ((c-feasible (make-array (1+ n-total) :element-type 'simplex-dtype)))
 	  (iter (for ii below n-artificial) (setf (aref c-feasible (- n-total ii 1)) (coerce 1 'simplex-dtype)))
 	  (unless (= 0 (simplex-solve c-feasible tableau max-iterations))
 	    (error 'simplex-infeasible :tableau tableau))))
       ;;phase-2
-      (letv* ((c-opt (make-array (- n-total n-artificial) :element-type 'simplex-dtype))
-	      (nil (<- ((ii 0 (length c))) (aref c-opt ii) (coerce (aref c ii) 'simplex-dtype)))
+      (letv* ((c-opt (make-array (1+ (- n-total n-artificial)) :element-type 'simplex-dtype))
+	      (nil (progn (<- ((ii 0 (1- (length c)))) (aref c-opt ii) (coerce (aref c ii) 'simplex-dtype))
+			  (setf (aref c-opt (1- (length c-opt))) (coerce (aref c (1- (length c))) 'simplex-dtype))))
 	      (opt x lambda (simplex-solve c-opt tableau max-iterations))
 	      (primal (make-array (- n-total n-artificial) :element-type 'simplex-dtype))
 	      (dual (make-array (length row-basic) :element-type 'simplex-dtype)))
