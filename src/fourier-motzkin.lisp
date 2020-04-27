@@ -24,28 +24,31 @@
 
 (define-condition fourier-motzkin-infeasible (error) ())
 
-(defun simplify-constraints! (constraints)
+(defun symbolic-vectorp (vec)
+  (iter (for vi in-vector vec) (if (not (numberp vi)) (return t))))
+
+(defun simplify-constraints-numerical! (constraints)
   ;;normalize
   (iter (for cst.i in-vector constraints with-index i)
-	(let* ((a.i (inequation-row cst.i))
-	       (op.i (inequation-op cst.i))
-	       (nz -1) (ncount 0)
-	       (gcd (iter (for a.ij in-vector a.i with-index j)
-			  (when (/= 0 a.ij)
-			    (if (< j (1- (length a.i))) (incf ncount)) ;; check for constant inequation
-			    (if (< nz 0) (setf nz j))                  ;; canonicalize by first nz variable
-			    (reducing a.ij by #'gcd initial-value 0)))))
-	  (assert (or (< 0 ncount)
-		      (ecase op.i
-			(:= nil)
-			(:<= (<= 0 (aref a.i (1- (length a.i)))))
-			(:>= (>= 0 (aref a.i (1- (length a.i)))))))
-		  nil 'fourier-motzkin-infeasible)
-	  (cond
-	    ((or (= 0 gcd) (= 0 ncount)) (setf (aref constraints i) nil))
-	    (t (let ((s (* gcd (ecase op.i (:>= -1) (:<= 1) (:= (signum (aref a.i nz)))))))
-		 (if (< s 0) (setf (inequation-op cst.i) (ecase op.i (:<= :>=) (:>= :<=) (:= :=))))
-		 (if (/= s 1) (<- (_jj) (aref a.i _jj) (floor (aref a.i _jj) s))))))))
+    (let* ((a.i (inequation-row cst.i))
+	   (op.i (inequation-op cst.i))
+	   (nz -1) (ncount 0)
+	   (gcd (iter (for a.ij in-vector a.i with-index j)
+		  (when (/= 0 a.ij)
+		    (if (< j (1- (length a.i))) (incf ncount)) ;; check for constant inequation
+		    (if (< nz 0) (setf nz j))                  ;; canonicalize by first nz variable
+		    (reducing a.ij by #'gcd initial-value 0)))))
+      (assert (or (< 0 ncount)
+		  (ecase op.i
+		    (:= nil)
+		    (:<= (<= 0 (aref a.i (1- (length a.i)))))
+		    (:>= (>= 0 (aref a.i (1- (length a.i)))))))
+	      nil 'fourier-motzkin-infeasible)
+      (cond
+	((or (= 0 gcd) (= 0 ncount)) (setf (aref constraints i) nil))
+	(t (let ((s (* gcd (ecase op.i (:>= -1) (:<= 1) (:= (signum (aref a.i nz)))))))
+	     (if (< s 0) (setf (inequation-op cst.i) (ecase op.i (:<= :>=) (:>= :<=) (:= :=))))
+	     (if (/= s 1) (<- (_jj) (aref a.i _jj) (floor (aref a.i _jj) s))))))))
   ;;sort constraints
   (letv* ((constraints (remove nil constraints))
 	  (order (sort (let ((idx (make-array (length constraints) :element-type 'fixnum)))
@@ -71,6 +74,16 @@
 				 (setf (aref a.m (1- ncols)) (min (aref a.m (1- ncols)) (aref a.n (1- ncols)))
 				       (aref constraints n) nil)))))))
     (remove nil constraints)))
+
+(defun simplify-constraints! (constraints)
+  (iter (for cst in-vector constraints)
+    (if (symbolic-vectorp (inequation-row cst))
+	(collect cst into symbolic-cst result-type 'vector)
+	(collect cst into numeric-cst result-type 'vector))
+    (finally (return
+	       (concatenate 'vector
+			    (simplify-constraints-numerical! numeric-cst)
+			    symbolic-cst)))))
 
 (defun fm-pivot! (row col constraints)
   (let* ((cst.row (aref constraints row))
