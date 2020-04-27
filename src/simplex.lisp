@@ -289,7 +289,7 @@
   (with-slots (row-basic col-basic n-artificial) tableau
     (let ((n-total (length col-basic)))
       ;;phase-1
-      (when (> 0 n-artificial)
+      (when (> n-artificial 0)
 	(let ((c-feasible (make-array (1+ n-total) :element-type 'simplex-dtype)))
 	  (iter (for ii below n-artificial) (setf (aref c-feasible (- n-total ii 1)) (coerce 1 'simplex-dtype)))
 	  (unless (= 0 (simplex-solve c-feasible tableau max-iterations))
