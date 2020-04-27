@@ -272,18 +272,24 @@
     (if-let (ret (primal-simplex-step c tableau))
       (return (values-list ret)))
     (finally (restart-case (error 'simplex-exceeded-max-iterations :count max-iterations :tableau tableau)
-	       (continue (answer) (when answer (simplex-solve c tableau max-iterations)))))))
+	       (continue () (simplex-solve c tableau max-iterations))))))
 
-(defun linprog (c A op b &key (max-iterations 100) (tableau (make-tableau A op b)))
-  "(LINPROG c A op b &key [max-iterations 100] [tableau (make-tableau A op b)])
+(defun linprog (c A op b &key (max-iterations 100) &aux (tableau (make-tableau A op b)))
+  "(LINPROG c A op b &key [max-iterations 100]) => cost-optimal, primal, dual, tableau
+
    solve the LP,
    min   <c, x> := c_0 x_0 + c_1 x_1 ..... c_{n-1} x_{n-1} + c_{n},
 	 st.   x >= 0,
-	     A x op b"
+	     A x op b
+   if solution exists returns, (c^*, x, λ, tableau)
+   else one of the following conditions will be raised,
+   - SIMPLEX-INFEASIBLE
+   - SIMPLEX-UNBOUNDED
+   - SIMPLEX-EXCEEDED-MAX-ITERATIONS (handler: CONTINUE)"
   (with-slots (row-basic col-basic n-artificial) tableau
     (let ((n-total (length col-basic)))
       ;;phase-1
-      (when (and (> n-artificial 0) (some #'(lambda (bv) (<= (- n-total n-artificial) bv)) row-basic))
+      (when (> 0 n-artificial)
 	(let ((c-feasible (make-array (1+ n-total) :element-type 'simplex-dtype)))
 	  (iter (for ii below n-artificial) (setf (aref c-feasible (- n-total ii 1)) (coerce 1 'simplex-dtype)))
 	  (unless (= 0 (simplex-solve c-feasible tableau max-iterations))
@@ -383,3 +389,11 @@
 		   :n-slack n-slack :n-artificial n-artificial
 		   :A A-csc :b new-b :A-basic.t^{-1} Btinv
 		   :row-basic row-basic :col-basic col-basic)))
+
+(defun tableau-feasiblep (tableau)
+  (with-slots (A-basic.t^{-1} b row-basic col-basic n-artificial) tableau
+    (if (= n-artificial 0) t
+	(and (not (iter (for bv in-vector row-basic) (thereis (<= (- (length col-basic) n-artificial) bv))))
+	     (letv* ((m (length row-basic))
+		     (x-basic (gemm! 1 A-basic.t^{-1} b 1 (make-array (list m 1) :element-type 'simplex-dtype) t)))
+	       (iter (for ii below m) (always (<= 0 (aref x-basic ii 0)))))))))
