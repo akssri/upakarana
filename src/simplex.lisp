@@ -278,8 +278,8 @@
   "(LINPROG c A op b &key [max-iterations 100] [tableau (make-tableau A op b)])
    solve the LP,
    min   <c, x> := c_0 x_0 + c_1 x_1 ..... c_{n-1} x_{n-1} + c_{n},
-         st.   x >= 0,
-             A x op b"
+	 st.   x >= 0,
+	     A x op b"
   (with-slots (row-basic col-basic n-artificial) tableau
     (let ((n-total (length col-basic)))
       ;;phase-1
