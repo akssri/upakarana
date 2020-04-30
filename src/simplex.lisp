@@ -100,53 +100,6 @@
   Bt^-1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#|
-  revised simplex
-  ---------------
-  canonical form for simplex,
-  min c x
-      A x = b, b >= 0, A \in \mathbb{R}^{(m, n)}, m <= n
-      x >= 0
-
-  identify basic variable set B of size m; non-basic set R = {1..n} \ B
-
-  A_R x_R + A_B x_B = b
-  => x_b = A_B^{-1} (b - A_R x_R)
-
-  supp. A_B^{-1} b >= 0, so that,
-  (x_B, x_R) = (A_B^{-1} b, 0)
-  is a feasible solution.
-
-  cost = c_B A_B^{-1} b + (c_R - c_B A_B^{-1} A_R) x_R
-
-  let d_R = (c_R - c_B A_B^{-1} A_R)
-
-  if \exists i, (d_R)_i < 0, then there is scope for further decrease of the cost function along x_{R[i]}.
-  else, return (c_B A_B^{-1} b) as opt. value.
-
-  let x_j be the non-basic variable with the steepest negative gradient (bland's rule).
-
-  rewriting constraint eqn.,
-  x_B + A_B^{-1} A_R x_R = A_B^{-1} b           >= 0 (by assumption)
-
-  let M = A_B^{-1} A_R; M_j the column correspoding to x_j
-  let p = A_B^{-1} b
-
-  therefore,
-  x_B + M_{-j} x_{R-j} + M_j x_j = p            >= 0 (by assumption)
-
-  if M_j <= 0, then the LP is unbounded since x_j -> -\infty is feasible.
-  else, find row which minimizes max(p/M_j, 0),
-
-  r = argmin_i max(p/M_j, 0)[i]
-
-  setting x_j = max(p/M_j, 0)[r] achieves best improvement while maintaining feasibility.
-
-  add 'j' into set of basic variables, and pop basic variable corresponding to 'r'.
-  update A_B^{-1}.
-
-  repeat.
-|#
 
 (define-condition simplex-infeasible (error)
   ((infeasible-rows :initarg :infeasible-rows)
@@ -218,6 +171,54 @@
        non-basic))))
 
 ;;
+#|
+  primal simplex
+  --------------
+  canonical form for simplex,
+  min c x
+      A x = b, b >= 0, A \in \mathbb{R}^{(m, n)}, m <= n
+      x >= 0
+
+  identify basic variable set B of size m; non-basic set R = {1..n} \ B
+
+  A_R x_R + A_B x_B = b
+  => x_b = A_B^{-1} (b - A_R x_R)
+
+  supp. A_B^{-1} b >= 0, so that,
+  (x_B, x_R) = (A_B^{-1} b, 0)
+  is a feasible solution.
+
+  cost = c_B A_B^{-1} b + (c_R - c_B A_B^{-1} A_R) x_R
+
+  let d_R = (c_R - c_B A_B^{-1} A_R)
+
+  if \exists i, (d_R)_i < 0, then there is scope for further decrease of the cost function along x_{R[i]}.
+  else, return (c_B A_B^{-1} b) as opt. value.
+
+  let x_j be the non-basic variable with the steepest negative gradient (bland's rule).
+
+  rewriting constraint eqn.,
+  x_B + A_B^{-1} A_R x_R = A_B^{-1} b           >= 0 (by assumption)
+
+  let M = A_B^{-1} A_R; M_j the column correspoding to x_j
+  let p = A_B^{-1} b
+
+  therefore,
+  x_B + M_{-j} x_{R-j} + M_j x_j = p            >= 0 (by assumption)
+
+  if M_j <= 0, then the LP is unbounded since x_j -> -\infty is feasible.
+  else, find row which minimizes p/M_j > 0
+
+  r = argmin_i max(p/M_j, 0)[i]
+
+  setting x_j = max(p/M_j, 0)[r] achieves best improvement while maintaining feasibility.
+
+  add 'j' into set of basic variables, and pop basic variable corresponding to 'r'.
+  update A_B^{-1}.
+
+  repeat.
+|#
+
 (defun primal-direction (jj tableau)
   "(PRIMAL-DIRECTION jj tableau) => A_{B}^{-1} A[:, jj]"
   (with-slots (A A-basic.t^{-1}) tableau
@@ -240,31 +241,6 @@
 				   (finding ii minimizing (/ (aref A-basic^{-1}.b ii 0) (aref M-pivot-col 0 ii)))))))
 	    (if (not pivot-row) (error 'simplex-unbounded :unbounded-variables (list pivot-col) :tableau tableau)
 		(simplex-pivot! pivot-row pivot-col M-pivot-col tableau)))))))
-;;
-(defun dual-direction (ii non-basic tableau)
-  "(DUAL-DIRECTION ii tableau) => A_{B}^{-1}[ii, :] A[:, jj]"
-  (with-slots (A A-basic.t^{-1}) tableau
-    (let ((m (array-dimension A-basic.t^{-1} 0)))
-      (letv* ((A-basic.t^{-1}_ii (make-array (list m 1) :element-type 'simplex-dtype)))
-	(<- (jj) (aref A-basic.t^{-1}_ii jj 0) (aref A-basic.t^{-1} jj ii))
-	(dense-csc-gemm! 1 A-basic.t^{-1}_ii A non-basic 1 (make-array (list m 1) :element-type 'simplex-dtype))))))
-
-(defun dual-simplex-step (c tableau)
-  "(DUAL-SIMPLEX-STEP c tableau)
-   assumption: dual feasibility (primal optimality),
-	       (c_R - c_B A_B^{-1} A_R) >= 0"
-  (with-slots (A-basic.t^{-1} row-basic col-basic) tableau
-    (letv* ((cost-feasible d-non-basic A-basic^{-1}.b c-basic.A-basic^{-1} non-basic (simplex-state c tableau))
-	    (pivot-row (iter (for bv-ii in-vector row-basic with-index ii)
-			 (let ((beta-ii (aref A-basic^{-1}.b ii 0))) ;;bland's rule
-			   (if (< beta-ii 0) (finding bv-ii maximizing (- beta-ii)))))))
-      (if (not pivot-row) (list cost-feasible A-basic^{-1}.b c-basic.A-basic^{-1}) ;;feasibility
-	  (letv* ((G-pivot-row (dual-direction pivot-row non-basic tableau))
-		  (pivot-col (iter (for ii from 0 below (array-dimension G-pivot-row 0))
-			       (if (> 0 (aref G-pivot-row ii 0))
-				   (finding ii minimizing (/ (- (aref d-non-basic ii)) (aref G-pivot-row ii 0)))))))
-	    (if (not pivot-col) (error 'simplex-infeasible :infeasible-rows (list pivot-row) :tableau tableau) ;; unbounded dual
-		(simplex-pivot! pivot-row pivot-col (primal-direction pivot-col tableau) tableau)))))))
 
 ;;
 (defun simplex-solve (c tableau &optional (max-iterations 100))
@@ -304,6 +280,90 @@
 	(iter (for ri in-vector row-basic with-index ii) (setf (aref primal ri) (aref x ii 0)))
 	(<- (ii) (aref dual ii) (aref lambda ii 0))
 	(values opt primal dual tableau)))))
+
+;;
+#|
+  dual simplex
+  ------------
+  primal canonical form,
+  min c x
+      A x = b, b >= 0, A \in \mathbb{R}^{(m, n)}, m <= n
+      x >= 0
+
+  with the corresponding dual,
+  max b' y
+      A' y + w = c'
+      w >= 0
+
+  identify basic variable set B of size m; non-basic set R = {1..n} \ B,
+
+  A_B x_B + A_R x_R = b
+  => A' y + w = [A_B' y + w_B; A_R' y + w_R]
+
+  A' y + w = c'
+  => [A_B', I, 0] [y  ]    [c_B']
+     [A_R', 0, I] [w_B]  = [c_R']
+		  [w_R]
+
+  consider the submatrix of y and w_R,
+  W = [A_B', 0]
+      [A_R', I]
+  W^{-1} = [A_B'^{-1},       0]
+	   [-A_R' A_B'^{-1}, I]
+
+  - if the basis W is feasible for the dual then,
+  [y  ] = [A_B'^{-1},       0] [c_B']
+  [w_R]   [-A_R' A_B'^{-1}, I] [c_R']
+  => -A_R' A_B'^{-1} c_B' + c_R' >= 0
+  <=> primal optimality
+
+  - if the basic W is optimal for the dual then,
+  (-x_B) = 0 - [b', 0] [A_B'^{-1},       0] [I] = -b' A_B'^{-1} <= 0
+		       [-A_R' A_B'^{-1}, I] [0]
+  <=> primal feasibility
+
+  supp. the dual is feasible.
+
+  if \exists i, (x_B)_i < 0, then there is scope for further increase of the dual objective along w_{B[i]}.
+  else, return (c_B A_B^{-1} b) as the opt. value.
+
+  let w_j be the basic-slack variable with the steepest negative gradient (bland's rule).
+
+  rewriting constraint eqn. for the dual for w_R,
+  0 <= w_R = d_R' + G_{-j} w_{R-j} + G_j w_j, 
+  where,
+  G = A_R' A_B'^{-1}
+
+  if G_j >= 0, then the dual is unbounded since w_j -> \infty is dual-feasible.
+  else, find index which minimizes -d_R'/G_j > 0.
+
+  pivot & repeat.
+|#
+
+(defun dual-direction (ii non-basic tableau)
+  "(DUAL-DIRECTION ii tableau) => A_{B}^{-1}[ii, :] A[:, jj]"
+  (with-slots (A A-basic.t^{-1}) tableau
+    (let ((m (array-dimension A-basic.t^{-1} 0)))
+      (letv* ((A-basic.t^{-1}_ii (make-array (list m 1) :element-type 'simplex-dtype)))
+	(<- (jj) (aref A-basic.t^{-1}_ii jj 0) (aref A-basic.t^{-1} jj ii))
+	(dense-csc-gemm! 1 A-basic.t^{-1}_ii A non-basic 1 (make-array (list (length non-basic) 1) :element-type 'simplex-dtype))))))
+
+(defun dual-simplex-step (c tableau)
+  "(DUAL-SIMPLEX-STEP c tableau)
+   assumption: dual feasibility (primal optimality),
+	       (c_R - c_B A_B^{-1} A_R) >= 0"
+  (with-slots (A-basic.t^{-1} row-basic col-basic) tableau
+    (letv* ((cost-feasible d-non-basic A-basic^{-1}.b c-basic.A-basic^{-1} non-basic (simplex-state c tableau))
+	    (pivot-row (iter (for ii below (length row-basic))
+			 (let ((beta-ii (aref A-basic^{-1}.b ii 0))) ;;bland's rule
+			   (if (< beta-ii 0) (finding ii maximizing (- beta-ii)))))))
+      (if (not pivot-row) (list cost-feasible A-basic^{-1}.b c-basic.A-basic^{-1}) ;;feasibility
+	  (letv* ((G-pivot-row (dual-direction pivot-row non-basic tableau))
+		  (pivot-col (iter (for nbv-jj in-vector non-basic with-index jj)
+			       (if (> 0 (aref G-pivot-row jj 0))
+				   (finding nbv-jj minimizing (/ (- (aref d-non-basic jj 0)) (aref G-pivot-row jj 0)))))))
+	    (if (not pivot-col) (error 'simplex-infeasible :infeasible-rows (list pivot-row) :tableau tableau) ;; unbounded dual
+		(simplex-pivot! pivot-row pivot-col (primal-direction pivot-col tableau) tableau)))))))
 
 ;;tableau initialization;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun canonicalize-constraints (n b op)
