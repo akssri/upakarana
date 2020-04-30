@@ -330,7 +330,7 @@
   let w_j be the basic-slack variable with the steepest negative gradient (bland's rule).
 
   rewriting constraint eqn. for the dual for w_R,
-  0 <= w_R = d_R' + G_{-j} w_{R-j} + G_j w_j, 
+  0 <= w_R = d_R' + G_{-j} w_{R-j} + G_j w_j,
   where,
   G = A_R' A_B'^{-1}
 
