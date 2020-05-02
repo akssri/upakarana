@@ -243,45 +243,6 @@
 	      (simplex-pivot! pivot-row pivot-col M-pivot-col tableau))))))
 
 ;;
-(defun simplex-solve (c tableau &optional (max-iterations 100))
-  (iter (repeat max-iterations)
-    (if-let (ret (primal-simplex-step c tableau))
-      (return (values-list ret)))
-    (finally (restart-case (error 'simplex-exceeded-max-iterations :count max-iterations :tableau tableau)
-	       (continue () (simplex-solve c tableau max-iterations))))))
-
-(defun linprog (c A op b &key (max-iterations 100) &aux (tableau (make-tableau A op b)))
-  "(LINPROG c A op b &key [max-iterations 100]) => cost-optimal, primal, dual, tableau
-
-   solve the LP,
-   min   <c, x> := c_0 x_0 + c_1 x_1 ..... c_{n-1} x_{n-1} + c_{n},
-	 st.   x >= 0,
-	     A x op b
-   if solution exists returns, (c^*, x, λ, tableau)
-   else one of the following conditions will be raised,
-   - SIMPLEX-INFEASIBLE
-   - SIMPLEX-UNBOUNDED
-   - SIMPLEX-EXCEEDED-MAX-ITERATIONS (restart: CONTINUE)"
-  (with-slots (row-basic A n-artificial) tableau
-    (let ((n-total (csc-matrix-n A)))
-      ;;phase-1
-      (when (> n-artificial 0)
-	(let ((c-feasible (make-array (1+ n-total) :element-type 'simplex-dtype)))
-	  (iter (for ii below n-artificial) (setf (aref c-feasible (- n-total ii 1)) (coerce 1 'simplex-dtype)))
-	  (unless (= 0 (simplex-solve c-feasible tableau max-iterations))
-	    (error 'simplex-infeasible :tableau tableau))))
-      ;;phase-2
-      (letv* ((c-opt (make-array (1+ (- n-total n-artificial)) :element-type 'simplex-dtype))
-	      (nil (progn (<- ((ii 0 (1- (length c)))) (aref c-opt ii) (coerce (aref c ii) 'simplex-dtype))
-			  (setf (aref c-opt (1- (length c-opt))) (coerce (aref c (1- (length c))) 'simplex-dtype))))
-	      (opt x lambda (simplex-solve c-opt tableau max-iterations))
-	      (primal (make-array (- n-total n-artificial) :element-type 'simplex-dtype))
-	      (dual (make-array (length row-basic) :element-type 'simplex-dtype)))
-	(iter (for ri in-vector row-basic with-index ii) (setf (aref primal ri) (aref x ii 0)))
-	(<- (ii) (aref dual ii) (aref lambda ii 0))
-	(values opt primal dual tableau)))))
-
-;;
 #|
   dual simplex
   ------------
@@ -363,6 +324,60 @@
 				     (finding nbv-jj minimizing (/ (- (aref d-non-basic jj 0)) (aref G-pivot-row jj 0)))))))
 	  (if (not pivot-col) (error 'simplex-infeasible :infeasible-rows (list pivot-row) :tableau tableau) ;; unbounded dual
 	      (simplex-pivot! pivot-row pivot-col (primal-direction pivot-col tableau) tableau))))))
+
+;;
+(defun simplex-solve (c tableau &optional (max-iterations 100) (step-function #'primal-simplex-step))
+  (iter (repeat max-iterations)
+    (if-let (ret (funcall step-function c tableau))
+      (return (values-list ret)))
+    (finally (restart-case (error 'simplex-exceeded-max-iterations :count max-iterations :tableau tableau)
+	       (continue () (simplex-solve c tableau step-function max-iterations))))))
+
+(defun simplex-solution (bx bl tableau &optional x-lb)
+  (with-slots (row-basic n-artificial A) tableau
+    (letv* ((primal (if x-lb (copy-array x-lb)
+			(make-array (- (csc-matrix-n A) n-artificial) :element-type 'simplex-dtype)))
+	    (dual (make-array (array-dimension bl 0) :element-type 'simplex-dtype)))
+      (iter (for bv-i in-vector row-basic with-index ii)
+	    (incf (aref primal bv-i) (aref bx ii 0)))
+      (<- (ii) (aref dual ii) (aref bl ii 0))
+      (values primal dual))))
+
+(defun make-feasible-tableau (A op b &optional (max-iterations 100) &aux (tableau (make-tableau A op b)))
+  ;;phase-1
+  (with-slots (row-basic A n-artificial) tableau
+    (let ((n-total (csc-matrix-n A)))
+      (when (> n-artificial 0)
+	(let ((c-feasible (make-array (1+ n-total) :element-type 'simplex-dtype)))
+	  (iter (for ii below n-artificial) (setf (aref c-feasible (- n-total ii 1)) (coerce 1 'simplex-dtype)))
+	  (unless (= 0 (simplex-solve c-feasible tableau max-iterations))
+	    (error 'simplex-infeasible :tableau tableau))))))
+  tableau)
+
+(defun make-cvec (c tableau)
+  (with-slots (n-artificial A) tableau
+    (letv* ((cvec (make-array (1+ (- (csc-matrix-n A) n-artificial)) :element-type 'simplex-dtype)))
+      (<- ((ii 0 (1- (length c)))) (aref cvec ii) (coerce (aref c ii) 'simplex-dtype))
+      (setf (aref cvec (1- (length cvec))) (coerce (aref c (1- (length c))) 'simplex-dtype))
+      cvec)))
+
+(defun linprog (c A op b &key (max-iterations 100) &aux (tableau (make-feasible-tableau A op b)))
+  "(LINPROG c A op b &key [max-iterations 100]) => cost-optimal, primal, dual, tableau
+
+   solve the LP,
+   min   <c, x> := c_0 x_0 + c_1 x_1 ..... c_{n-1} x_{n-1} + c_{n},
+	 st.   x >= 0,
+	     A x op b
+   if solution exists returns, (c^*, x, λ, tableau)
+   else one of the following conditions will be raised,
+   - SIMPLEX-INFEASIBLE
+   - SIMPLEX-UNBOUNDED
+   - SIMPLEX-EXCEEDED-MAX-ITERATIONS (restart: CONTINUE)"
+  (with-slots (row-basic A n-artificial) tableau
+    (letv* ((cvec (make-cvec c tableau))
+	    (opt bx bl (simplex-solve cvec tableau max-iterations))
+	    (primal dual (simplex-solution bx bl tableau)))
+      (values opt primal dual tableau))))
 
 ;;tableau initialization;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun canonicalize-constraints (n b op)
