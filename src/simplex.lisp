@@ -19,6 +19,33 @@
 (deftype simplex-itype () 'fixnum)
 
 ;; linear algebra routines
+(defun gemm! (alpha A B beta C &optional transpose-A)
+  "C <- alpha op(A) B + beta C"
+  (declare (type (simple-array simplex-dtype (* *)) A B C))
+  (assert (if (not transpose-A)
+	      (and (= (array-dimension A 0) (array-dimension C 0))
+		   (= (array-dimension A 1) (array-dimension B 0))
+		   (= (array-dimension B 1) (array-dimension C 1)))
+	      (and (= (array-dimension A 1) (array-dimension C 0))
+		   (= (array-dimension A 0) (array-dimension B 0))
+		   (= (array-dimension B 1) (array-dimension C 1))))
+	  nil "invalid matrix dimensions for MM")
+  (let ((alpha (coerce alpha 'simplex-dtype)) (beta (coerce beta 'simplex-dtype)))
+    (declare (type simplex-dtype alpha beta)
+	     (optimize (speed 3) (safety 0)))
+    (if (/= beta 1) (<- (_ii _jj) (aref c _ii _jj) (* beta (aref c _ii _jj))))
+    (if (not transpose-A)
+	(loop :for ii :from 0 :below (array-dimension A 0)
+	      :do (loop :for kk :from 0 :below (array-dimension A 1)
+			:do (let ((s (* alpha (aref A ii kk))))
+			      (<- (_jj) (aref c ii _jj) (+ (aref c ii _jj) (* s (aref b kk _jj)))))))
+	(loop :for ii :from 0 :below (array-dimension A 1)
+	      :do (loop :for kk :from 0 :below (array-dimension A 0)
+			:do (let ((s (* alpha (aref A kk ii))))
+			      (<- (_jj) (aref c ii _jj) (+ (aref c ii _jj) (* s (aref b kk _jj)))))))))
+  c)
+
+;; sparse csc
 (defstruct csc-matrix
   (m 0 :type simplex-itype)
   (n 0 :type simplex-itype)
@@ -52,32 +79,7 @@
 	    :counting t :into jj-c)))
   C)
 
-(defun gemm! (alpha A B beta C &optional transpose-A)
-  "C <- alpha op(A) B + beta C"
-  (declare (type (simple-array simplex-dtype (* *)) A B C))
-  (assert (if (not transpose-A)
-	      (and (= (array-dimension A 0) (array-dimension C 0))
-		   (= (array-dimension A 1) (array-dimension B 0))
-		   (= (array-dimension B 1) (array-dimension C 1)))
-	      (and (= (array-dimension A 1) (array-dimension C 0))
-		   (= (array-dimension A 0) (array-dimension B 0))
-		   (= (array-dimension B 1) (array-dimension C 1))))
-	  nil "invalid matrix dimensions for MM")
-  (let ((alpha (coerce alpha 'simplex-dtype)) (beta (coerce beta 'simplex-dtype)))
-    (declare (type simplex-dtype alpha beta)
-	     (optimize (speed 3) (safety 0)))
-    (if (/= beta 1) (<- (_ii _jj) (aref c _ii _jj) (* beta (aref c _ii _jj))))
-    (if (not transpose-A)
-	(loop :for ii :from 0 :below (array-dimension A 0)
-	      :do (loop :for kk :from 0 :below (array-dimension A 1)
-			:do (let ((s (* alpha (aref A ii kk))))
-			      (<- (_jj) (aref c ii _jj) (+ (aref c ii _jj) (* s (aref b kk _jj)))))))
-	(loop :for ii :from 0 :below (array-dimension A 1)
-	      :do (loop :for kk :from 0 :below (array-dimension A 0)
-			:do (let ((s (* alpha (aref A kk ii))))
-			      (<- (_jj) (aref c ii _jj) (+ (aref c ii _jj) (* s (aref b kk _jj)))))))))
-  c)
-
+;; TODO: use E-updates + periodic sparse-LU
 (defun inverse-update! (Bt^-1 r Mr)
   "(INVERSE-UPDATE! Bt^-1 r Mr)
    update @arg{Bt^-1} such that the @arg{r}'th column of B was replaced by B @arg{Mr}.
@@ -99,7 +101,7 @@
       (<- (_jj) (aref Bt^-1 _jj r) (* s (aref Bt^-1 _jj r)))))
   Bt^-1)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-condition simplex-infeasible (error)
   ((infeasible-rows :initarg :infeasible-rows)
@@ -379,7 +381,7 @@
 	    (primal dual (simplex-solution bx bl tableau)))
       (values opt primal dual tableau))))
 
-;;tableau initialization;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;tableau initialization;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun canonicalize-constraints (n b op)
   (letv* ((row-basic (make-array (length b) :initial-element nil :fill-pointer t :adjustable t))
 	  (n-slack -1) (n-artificial -1) (A-slack nil)
