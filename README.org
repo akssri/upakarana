@@ -17,7 +17,8 @@ The core package (#:upakarana) contains quite a few utility functions & macros; 
 - fourier-motzkin
   fourier-motzkin elimination of variables from linear (integer) inequalities for polyhedral enumeration; not accelerated.
 - simplex
-  revised simplex method for solving sparse LPs.
+  revised simplex method for solving sparse LPs (currently uses explicit basis inverse).
+  branch-and-bound ILP solver using dual-simplex warm-start.
 - orthogonal-polynomial
   classical ortho-polynomial families; their evaluation, derivatives & quadrature (Golub-Welsch)
 - ziggurat

@@ -119,3 +119,20 @@
 		     (number (< (abs (- a b)) eps))))
 	       (mapcar #'run-simplex *simplex-lp-test-problems*)
 	       (list :UNB :UNB -2 5 219/68 11 7 0 (+ 10 10/3))))))
+
+
+(5am:test branch-bound-test
+  (letv* ((eps (scale-float 1d0 -46))
+	  ((c a op b) '(#(1 2 5/10 2/10 1 -6/10 0)
+			((0 1 . 2) (0 0 . 1) ;; x_1 + 2 x_2
+			 (1 5 . 3) (1 1 . 1) (1 0 . 1) ;; x_1 + x_2 + 3 x_6
+			 (2 5 . 1) (2 1 . 1) (2 0 . 1) ;; x_1 + x_2 + x_6
+			 (3 3 . -3) (3 2 . 1) ;; x_3 - 3 x_4
+			 (4 4 . -5) (4 3 . -2) (4 2 . 1) ;; x_3 - 2 x_4 - 5 x_5
+			 (5 5 . -4) (5 4 . 3) (5 3 . 1) ;; x_4 + 3 x_5 - 4 x_6
+			 (6 5 . 1) (6 4 . 1) (6 1 . 1) ;; x_2 + x_5 + x_6
+			 (12 5 . 1) (11 4 . 1) (10 3 . 1) (9 2 . 1) (8 1 . 1) (7 0 . 1))
+			#(:>= :>= :>= :>= :>= :>= :>= :<= :<= :<= :<= :<= :<=)
+			#(1 1 1 1 1 1 1 10 10 10 10 10 10)))
+	  (integer-variables (coerce (vector 0 1 2 3 4 5) '(simple-array simplex-itype (*)))))
+    (is (< (abs (- (u.splx:intlinprog c a op b :integer-constraint integer-variables) 42/10)) eps))))

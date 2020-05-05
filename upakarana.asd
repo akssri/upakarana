@@ -31,6 +31,7 @@
 		       (:file "fibonacci-heap" :depends-on ("doubly-linked-list"))
 		       (:file "fourier-motzkin" :depends-on ("macros" "functions" "vector"))
 		       (:file "simplex" :depends-on ("macros" "functions" "vector"))
+		       (:file "ilp" :depends-on ("simplex"))
 		       (:file "orthogonal-polynomial" :depends-on ("macros" "functions" "vector"))
 		       (:file "ziggurat" :depends-on ("orthogonal-polynomial"))
 		       (:file "random" :depends-on ("ziggurat"))))))))

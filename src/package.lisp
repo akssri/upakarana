@@ -75,7 +75,7 @@
 	   #:csc-matrix #:csc-matrix-m #:csc-matrix-n #:csc-matrix-ptr #:csc-matrix-idx #:csc-matrix-val
 	   #:make-tableau #:simplex-tableau #:n-slack #:n-artificial #:A #:b #:A-basic.t^{-1} #:row-basic #:col-basic
 	   #:primal-simplex-step #:dual-simplex-step
-	   #:linprog))
+	   #:linprog #:intlinprog))
 
 (defpackage "UPAKARANA-ORTHOGONAL-POLYNOMIAL"
   (:nicknames :u.opoly)
