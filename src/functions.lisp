@@ -184,35 +184,22 @@
 	  lsts :from-end t))
 
 (declaim (inline binary-search))
-(defun binary-search (val lb ub vec &key (order #'<) (test #'=))
-  "(BINARY-SEARCH val lb ub vec &key [order #'<] [test #'=]) => index existsp
-  Searches a sorted vector @arg{val} for @arg{val} in the index range [lb, ub).
+(defun binary-search (a x &key (lo 0) (hi (length a)) (order #'<))
+  "(BINARY-SEARCH a x &key [lo 0] [hi (length a)] [order #'<]) => idx
+  searches the sorted vector @arg{a} for smallest @arg{idx} in range [lo, hi) st., (not (order a[idx] x)) is satisfied.
 
-  > (binary-search 1.2 0 2 #(1 5 8 19))
+  > (binary-search #(0 1 1 1) 1 :order #'<)  ;; left:  a[i-1] < x <= a[i]
   1
-  NIL
-  > (binary-search 9 0 2 #(1 5 8 19))
-  NIL
-  2
-  > (binary-search 8 0 2 #(1 5 8 19))
-  NIL
-  2
-  M>
-  > (binary-search 5 0 2 #(1 5 8 19))
-  1
-  T"
-  (declare (type fixnum lb ub)
-	   (type vector vec))
-  (cond
-    ((or (= lb ub) (funcall order val (aref vec lb))) (values nil lb))
-    ((funcall order (aref vec (1- ub)) val) (values nil ub))
-    (t (loop :for j :of-type fixnum := (floor (+ lb ub) 2)
-	  :repeat #.(ceiling (log array-dimension-limit 2))
-	  :do (cond ((funcall test (aref vec j) val) (return (values j t)))
-		    ((>= lb (1- ub)) (return (values (if (funcall order (aref vec lb) val) (1+ lb) lb) nil)))
-		    (t (if (funcall order val (aref vec j))
-			   (setf ub j)
-			   (setf lb (1+ j)))))))))
+  > (binary-search #(0 1 1 1) 1 :order #'<=) ;; right: a[i-1] <= x < a[i]
+  4"
+  (declare (type (integer 0 #.array-dimension-limit) lo hi)
+	   (type vector a))
+  (loop :while (> (- hi lo) 1)
+	:do (let ((mid (floor (+ lo hi) 2)))
+	      (if (funcall order (aref a mid) x)
+		  (setf lo mid)
+		  (setf hi mid))))
+  (if (funcall order (aref a lo) x) hi lo))
 
 (declaim (inline sort-index))
 (defun sort-index (seq predicate &key key)

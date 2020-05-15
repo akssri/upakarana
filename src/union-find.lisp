@@ -17,11 +17,20 @@
 ;; See https://www.cs.princeton.edu/~rs/AlgsDS07/01UnionFind.pdf
 
 (defclass union-find ()
-  ((id :accessor id :initform (make-extensible-vector))
-   (size :accessor size :initform (make-extensible-vector))
+  ((id :accessor id :initarg :id :initform (make-extensible-vector))
+   (size :accessor size :initarg :size :initform (make-extensible-vector))
    ;; subtree
-   (ptr :initform (make-extensible-vector))
-   (leaf :initform (make-extensible-vector))))
+   (ptr :initarg :ptr :initform (make-extensible-vector))
+   (leaf :initarg :leaf :initform (make-extensible-vector))))
+
+(defun union-find (&optional n)
+  (if (not n) (make-instance 'union-find)
+      (letv* ((id (make-array n :element-type 'fixnum))
+	      (size (make-array n :element-type 'fixnum)))
+	(loop :for ii :below (length id) :do
+	  (setf (aref id ii) ii
+		(aref size ii) 1))
+	(make-instance 'union-find :id id :size size :ptr (copy-seq id) :leaf (copy-seq id)))))
 
 (defmethod print-object ((obj union-find) stream)
   (print-unreadable-object (obj stream :type t)
