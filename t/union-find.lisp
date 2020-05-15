@@ -31,8 +31,8 @@
 	    (u.ufd:unify ii jj ufd)
 	    (setf (gethash ii tbl) newset
 		  (gethash jj tbl) newset)))
-    (is
-     (iter (for (k set-k) in-hashtable tbl)
-	   (let ((roots (remove-duplicates (mapcar #'(lambda (x) (u.ufd:root x ufd)) set-k))))
-	     (if (/= (length roots) 1) (return nil)))
-	   (finally (return t))))))
+    (is (progn
+	  (iter (for (k set-k) in-hashtable tbl)
+	    (always (and
+		     (= 1 (length (remove-duplicates (mapcar #'(lambda (x) (u.ufd:root x ufd)) set-k))))
+		     (null (set-difference set-k (u.ufd:subset k ufd))))))))))

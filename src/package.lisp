@@ -19,7 +19,7 @@
   (:use #:common-lisp #:iterate #:alexandria)
   (:export #:make-extensible-vector #:maptree-if #:maptree #:cartesian-product #:mapcart
 	   #:pair #:zip #:unzip #:ziptree #:recursive-append #:take-while
-	   #:binary-search #:sort-index #:topological-sort
+	   #:binary-search #:sort-index #:topological-sort #:slot-values
 	   ;; macros
 	   #:gethash! #:assoc! #:getf! #:accum! #:values-n #:letv* #:cart-case #:cart-ecase
 	   #:cart-typecase #:cart-etypecase #:with-memoization #:.>))
@@ -27,7 +27,7 @@
 (defpackage "UPAKARANA-UNION-FIND"
   (:nicknames :u.ufd)
   (:use #:common-lisp #:upakarana #:iterate)
-  (:export #:union-find #:id #:size #:root #:unify))
+  (:export #:union-find #:id #:size #:root #:unify #:subset))
 
 (defpackage "UPAKARANA-HASH-SET"
   (:nicknames :u.set)
@@ -59,7 +59,7 @@
 (defpackage "UPAKARANA-VECTOR"
   (:nicknames :u.vec)
   (:use #:common-lisp #:upakarana)
-  (:export #:foldr #:foldl #:extreme #:copy! #:map! #:<-))
+  (:export #:foldr #:foldl #:extreme #:diff #:copy! #:map! #:<-))
 
 (defpackage "UPAKARANA-FOURIER-MOTZKIN"
   (:nicknames :u.fm)

@@ -18,6 +18,14 @@
 (defun make-extensible-vector (&key (element-type t))
   (make-array 0 :adjustable t :fill-pointer t :element-type element-type))
 
+(defun slot-values (obj slots)
+  (values-list (mapcar #'(lambda (s) (slot-value obj s)) slots)))
+(define-compiler-macro slot-values (&whole form obj slots)
+  (if (and (listp slots) (eql (car slots) 'quote) (null (cddr slots)))
+      (once-only (obj)
+	`(values ,@(mapcar #'(lambda (x) `(slot-value ,obj ',x)) (second slots))))
+      form))
+
 (defun maptree-if (predicate transformer tree)
   "(MAPTREE-IF predicate transformer tree)
 

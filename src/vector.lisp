@@ -61,7 +61,15 @@
      :do (when (funcall order ele max)
 	   (setf max ele
 		 max-idx idx))
-     :finally (return (values max max-idx))))
+	:finally (return (values max max-idx))))
+
+(declaim (inline diff))
+(defun diff (vec)
+  (declare (type vector vec))
+  (let ((ret (make-array (1- (length vec)) :element-type (array-element-type vec))))
+    (loop :for i :of-type fixnum :from 0 :below (1- (length vec))
+      :do (setf (aref ret i) (- (aref vec (1+ i)) (aref vec i))))
+    ret))
 
 (declaim (inline copy!))
 (defun copy! (n in of/in out of/out &key key lock)
