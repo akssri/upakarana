@@ -71,6 +71,14 @@
       :do (setf (aref ret i) (- (aref vec (1+ i)) (aref vec i))))
     ret))
 
+(declaim (inline diff))
+(defun cumsum (vec)
+  (declare (type vector vec))
+  (let ((ret (make-array (1+ (length vec)) :element-type (array-element-type vec))))
+    (loop :for i :of-type fixnum :from 0 :below (length vec) :do
+      (setf (aref ret (1+ i)) (+ (aref ret i) (aref vec i))))
+    ret))
+
 (declaim (inline copy!))
 (defun copy! (n in of/in out of/out &key key lock)
   (declare (type fixnum n of/in of/out)

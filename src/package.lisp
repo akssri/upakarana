@@ -59,7 +59,7 @@
 (defpackage "UPAKARANA-VECTOR"
   (:nicknames :u.vec)
   (:use #:common-lisp #:upakarana)
-  (:export #:foldr #:foldl #:extreme #:diff #:copy! #:map! #:<-))
+  (:export #:foldr #:foldl #:extreme #:diff #:cumsum #:copy! #:map! #:<-))
 
 (defpackage "UPAKARANA-FOURIER-MOTZKIN"
   (:nicknames :u.fm)

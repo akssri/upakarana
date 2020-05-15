@@ -185,8 +185,9 @@
 
 (declaim (inline binary-search))
 (defun binary-search (a x &key (lo 0) (hi (length a)) (order #'<))
-  "(BINARY-SEARCH a x &key [lo 0] [hi (length a)] [order #'<]) => idx
-  searches the sorted vector @arg{a} for smallest @arg{idx} in range [lo, hi) st., (not (order a[idx] x)) is satisfied.
+ "(BINARY-SEARCH a x &key [lo 0] [hi (length a)] [order #'<]) => idx
+  finds the smallest @arg{idx} \in [@arg{lo}, @arg{hi}) st., (not (order a[idx] x)) is satisfied; else returns @arg{hi}.
+  assumptions: a is sorted under @arg{order}
 
   > (binary-search #(0 1 1 1) 1 :order #'<)  ;; left:  a[i-1] < x <= a[i]
   1
@@ -194,12 +195,13 @@
   4"
   (declare (type (integer 0 #.array-dimension-limit) lo hi)
 	   (type vector a))
-  (loop :while (> (- hi lo) 1)
-	:do (let ((mid (floor (+ lo hi) 2)))
-	      (if (funcall order (aref a mid) x)
-		  (setf lo mid)
-		  (setf hi mid))))
-  (if (funcall order (aref a lo) x) hi lo))
+  (if (not (funcall order (aref a lo) x)) lo
+      (loop :while (> (- hi lo) 1) :do
+	(let ((mid (floor (+ lo hi) 2)))
+	  (if (funcall order (aref a mid) x)
+	      (setf lo mid)
+	      (setf hi mid)))
+	    :finally (return hi))))
 
 (declaim (inline sort-index))
 (defun sort-index (seq predicate &key key)
