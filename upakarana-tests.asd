@@ -26,4 +26,5 @@
 	     (:file "fibonacci-heap")
 	     (:file "fourier-motzkin")
 	     (:file "simplex")
-	     (:file "orthogonal-polynomial")))))
+	     (:file "orthogonal-polynomial"))))
+  :perform (test-op (op c) (symbol-call '#:upakarana-tests '#:run-tests)))
