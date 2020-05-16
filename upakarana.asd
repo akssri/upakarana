@@ -34,4 +34,5 @@
 		       (:file "ilp" :depends-on ("simplex"))
 		       (:file "orthogonal-polynomial" :depends-on ("macros" "functions" "vector"))
 		       (:file "ziggurat" :depends-on ("orthogonal-polynomial"))
-		       (:file "random" :depends-on ("ziggurat"))))))))
+		       (:file "random" :depends-on ("ziggurat")))))))
+  :perform (test-op (op c) (symbol-call '#:upakarana-tests '#:run-tests)))

@@ -134,5 +134,5 @@
 			 (12 5 . 1) (11 4 . 1) (10 3 . 1) (9 2 . 1) (8 1 . 1) (7 0 . 1))
 			#(:>= :>= :>= :>= :>= :>= :>= :<= :<= :<= :<= :<= :<=)
 			#(1 1 1 1 1 1 1 10 10 10 10 10 10)))
-	  (integer-variables (coerce (vector 0 1 2 3 4 5) '(simple-array simplex-itype (*)))))
+	  (integer-variables (coerce (vector 0 1 2 3 4 5) '(simple-array u.splx:simplex-itype (*)))))
     (is (< (abs (- (u.splx:intlinprog c a op b :integer-constraint integer-variables) 42/10)) eps))))

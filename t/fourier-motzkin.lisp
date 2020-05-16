@@ -29,13 +29,14 @@
 		  ((1 -1 0) :<=)))))   ;; i - j <= 0
     (letv* ((solution A-next (u.fm:fourier-motzkin 1 A))) ;; eliminate j
       (flet ((inequation (x) (list (coerce (u.fm:inequation-row x) 'list) (u.fm:inequation-op x))))
-	(is
-	 (and (equal
-	       (map 'list #'inequation solution)
-	       '(((0 1 5) :<=)         ;; j <= 5
-		 ((0 1 0) :>=)         ;; j >= 0
-		 ((1 -1 0) :<=)))      ;; j >= i (-> j >= max(0, i))
-	      (equal
-	       (map 'list #'inequation A-next)
-	       '(((-1 0 0) :<=)        ;; i >= 0
-		 ((1 0 5) :<=))))))))) ;; i <= 5
+	;; eliminated variable solution
+	(is (equal
+	     (map 'list #'inequation solution)
+	     '(((0 1 5) :<=)         ;; j <= 5
+	       ((0 1 0) :>=)         ;; j >= 0
+	       ((1 -1 0) :<=))))
+	;; sub problem
+	(is (equal
+	     (map 'list #'inequation A-next)
+	     '(((-1 0 0) :<=)        ;; i >= 0
+	       ((1 0 5) :<=))))))))  ;; i <= 5

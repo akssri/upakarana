@@ -39,35 +39,44 @@
   (letv* ((p (u.opoly:orthogonal-polynomial :legendre))
 	  (n 16) (eps 1d-14)
 	  (x w (u.opoly:gauss-quadrature n p)))
-    (is
-     (progn
-       (iter (for xi in-vector x with-index i)
-	 (let ((wi-analytical (/ 2 (- 1 (* xi xi)) (expt (nth-value 1 (u.opoly:evaluate xi n p 1)) 2))))
-	   (always (and (< (abs (u.opoly:evaluate xi n p)) eps)
-			(< (abs (- wi-analytical (aref w i))) eps)))))))))
+    ;; root
+    (is (progn
+	  (iter (for xi in-vector x with-index i)
+	    (always (< (abs (u.opoly:evaluate xi n p)) eps)))))
+    ;; weight
+    (is (progn
+	  (iter (for xi in-vector x with-index i)
+	    (let ((wi-analytical (/ 2 (- 1 (* xi xi)) (expt (nth-value 1 (u.opoly:evaluate xi n p 1)) 2))))
+	      (always (< (abs (- wi-analytical (aref w i))) eps))))))))
 
 (5am:test chebyshev-t-quadrature
   (letv* ((p (u.opoly:orthogonal-polynomial :chebyshev-t))
 	  (n 16) (eps 1d-13)
 	  (x w (u.opoly:gauss-quadrature n p)))
-    (is
-     (progn
-       (iter (for xi in-vector x with-index i)
-	 (let ((xi-analytical (- (cos (* pi (- (* 2 (1+ i)) 1) (/ (* 2 n))))))
-	       (wi-analytical (/ pi n)))
-	   (always (and (< (abs (u.opoly:evaluate xi n p)) eps)
-			(< (abs (- xi-analytical xi)) eps)
-			(< (abs (- wi-analytical (aref w i))) eps)))))))))
+    ;; root
+    (is (progn
+	  (iter (for xi in-vector x with-index i)
+	    (let ((xi-analytical (- (cos (* pi (- (* 2 (1+ i)) 1) (/ (* 2 n)))))))
+	      (always (and (< (abs (u.opoly:evaluate xi n p)) eps)
+			   (< (abs (- xi-analytical xi)) eps)))))))
+    ;; weight
+    (is (progn
+	  (iter (for xi in-vector x with-index i)
+	    (let ((wi-analytical (/ pi n)))
+	      (always (< (abs (- wi-analytical (aref w i))) eps))))))))
 
 (5am:test chebyshev-u-quadrature
   (letv* ((p (u.opoly:orthogonal-polynomial :chebyshev-u))
 	  (n 16) (eps 1d-12)
 	  (x w (u.opoly:gauss-quadrature n p)))
-    (is
-     (progn
-       (iter (for xi in-vector x with-index i)
-	 (let ((xi-analytical (cos (* pi (/ (- n i) (1+ n)))))
-	       (wi-analytical (* (/ pi (1+ n)) (expt (sin (* pi (/ (- n i) (1+ n)))) 2))))
-	   (always (and (< (abs (u.opoly:evaluate xi n p)) eps)
-			(< (abs (- xi-analytical xi)) eps)
-			(< (abs (- wi-analytical (aref w i))) eps)))))))))
+    ;; root
+    (is (progn
+	  (iter (for xi in-vector x with-index i)
+	    (let ((xi-analytical (cos (* pi (/ (- n i) (1+ n))))))
+	      (always (and (< (abs (u.opoly:evaluate xi n p)) eps)
+			   (< (abs (- xi-analytical xi)) eps)))))))
+    ;; weight
+    (is (progn
+	  (iter (for xi in-vector x with-index i)
+	    (let ((wi-analytical (* (/ pi (1+ n)) (expt (sin (* pi (/ (- n i) (1+ n)))) 2))))
+	      (always (< (abs (- wi-analytical (aref w i))) eps))))))))
