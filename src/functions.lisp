@@ -195,6 +195,7 @@
   4"
   (declare (type (integer 0 #.array-dimension-limit) lo hi)
 	   (type vector a))
+  (assert (< lo hi (1+ (length a))) nil "invalid index range: [~a, ~a) for vector of length ~a" lo hi (length a))
   (if (not (funcall order (aref a lo) x)) lo
       (loop :while (> (- hi lo) 1) :do
 	(let ((mid (floor (+ lo hi) 2)))
